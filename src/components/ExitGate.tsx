@@ -57,14 +57,14 @@ export default function ExitGate() {
       <button
         type="button"
         onClick={handleExitClick}
-        className="fixed right-4 top-20 z-40 rounded-lg border border-white/20 bg-black/80 px-4 py-2 text-sm font-medium text-white shadow-lg transition hover:bg-zinc-900"
+        className="fixed right-4 top-20 z-40 rounded-xl border border-cyan-200/50 bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_10px_28px_rgba(34,211,238,0.45)] transition hover:bg-cyan-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
       >
         Exit
       </button>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/50 p-4 pt-24">
-          <div className="w-full max-w-xs rounded-xl border border-white/15 bg-zinc-950 p-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-end bg-slate-950/70 p-4 pt-24">
+          <div className="w-full max-w-xs rounded-2xl border border-cyan-200/25 bg-slate-950 p-4 shadow-[0_18px_36px_rgba(15,23,42,0.8)]">
             <h2 className="mb-3 text-base font-semibold text-white">Parent PIN</h2>
             <input
               type="password"
@@ -75,17 +75,17 @@ export default function ExitGate() {
                 const digitsOnly = event.target.value.replace(/\D/g, "");
                 setPinInput(digitsOnly.slice(0, 4));
               }}
-              className="w-full rounded-lg border border-white/20 bg-black px-3 py-2 text-base text-white outline-none ring-0 placeholder:text-zinc-500 focus:border-white/40"
+              className="w-full rounded-xl border border-white/20 bg-slate-900 px-3 py-2.5 text-base text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-300/60"
               placeholder="Enter 4-digit PIN"
             />
 
-            {message ? <p className="mt-2 text-sm text-amber-200">{message}</p> : null}
+            {message ? <p className="mt-2 text-sm text-amber-100">{message}</p> : null}
 
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-zinc-200"
+                className="flex-1 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
               >
                 Confirm Exit
               </button>
@@ -96,7 +96,7 @@ export default function ExitGate() {
                   setPinInput("");
                   setMessage(null);
                 }}
-                className="rounded-lg border border-white/20 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+                className="rounded-xl border border-white/20 px-4 py-2.5 text-sm text-white transition hover:bg-white/10"
               >
                 Cancel
               </button>

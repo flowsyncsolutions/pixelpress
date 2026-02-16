@@ -5,6 +5,7 @@ export type GameCategory = (typeof CATEGORIES)[number];
 export type Game = {
   slug: string;
   title: string;
+  icon: string;
   description: string;
   tags: string[];
   category: GameCategory;
@@ -19,6 +20,7 @@ export const GAMES: Game[] = [
   {
     slug: "rainbow-hop",
     title: "Rainbow Hop",
+    icon: "🌈",
     description: "Jump across floating colors and avoid the splash zones.",
     tags: ["kids", "reaction"],
     category: "kids",
@@ -28,6 +30,7 @@ export const GAMES: Game[] = [
   {
     slug: "bubble-pop-party",
     title: "Bubble Pop Party",
+    icon: "🫧",
     description: "Pop matching bubbles before the board fills up.",
     tags: ["kids", "casual"],
     category: "kids",
@@ -37,6 +40,7 @@ export const GAMES: Game[] = [
   {
     slug: "space-pet-rescue",
     title: "Space Pet Rescue",
+    icon: "🚀",
     description: "Guide friendly pets through easy space lanes.",
     tags: ["kids", "arcade"],
     category: "kids",
@@ -46,6 +50,7 @@ export const GAMES: Game[] = [
   {
     slug: "color-runner-jr",
     title: "Color Runner Jr",
+    icon: "🏃",
     description: "Dash through bright tracks and collect safe boosts.",
     tags: ["kids", "runner"],
     category: "kids",
@@ -55,6 +60,7 @@ export const GAMES: Game[] = [
   {
     slug: "tic-tac-toe",
     title: "Tic Tac Toe",
+    icon: "⭕",
     description: "Classic 3x3 strategy rounds for quick wins.",
     tags: ["classics", "strategy"],
     category: "classics",
@@ -64,6 +70,7 @@ export const GAMES: Game[] = [
   {
     slug: "memory-match",
     title: "Memory Match",
+    icon: "🧠",
     description: "Flip cards and find all pairs with fewer moves.",
     tags: ["classics", "memory"],
     category: "classics",
@@ -73,6 +80,7 @@ export const GAMES: Game[] = [
   {
     slug: "snake",
     title: "Snake",
+    icon: "🐍",
     description: "Collect pixels, grow longer, and avoid walls.",
     tags: ["classics", "arcade"],
     category: "classics",
@@ -82,6 +90,7 @@ export const GAMES: Game[] = [
   {
     slug: "breakout",
     title: "Breakout",
+    icon: "🧱",
     description: "Bounce the ball and clear every block.",
     tags: ["classics", "arcade"],
     category: "classics",
@@ -91,6 +100,7 @@ export const GAMES: Game[] = [
   {
     slug: "pong",
     title: "Pong",
+    icon: "🏓",
     description: "Retro paddle battles with simple controls.",
     tags: ["classics", "retro"],
     category: "classics",
@@ -101,6 +111,7 @@ export const GAMES: Game[] = [
   {
     slug: "math-sprint",
     title: "Math Sprint",
+    icon: "➗",
     description: "Solve quick arithmetic to keep your runner moving.",
     tags: ["educational", "math"],
     category: "educational",
@@ -110,6 +121,7 @@ export const GAMES: Game[] = [
   {
     slug: "word-trails",
     title: "Word Trails",
+    icon: "🔤",
     description: "Build words from letter paths across the board.",
     tags: ["educational", "spelling"],
     category: "educational",
@@ -119,6 +131,7 @@ export const GAMES: Game[] = [
   {
     slug: "planet-facts-quiz",
     title: "Planet Facts Quiz",
+    icon: "🪐",
     description: "Pick the right fact to travel through the solar system.",
     tags: ["educational", "science"],
     category: "educational",
@@ -128,6 +141,7 @@ export const GAMES: Game[] = [
   {
     slug: "shape-lab",
     title: "Shape Lab",
+    icon: "📐",
     description: "Match 2D and 3D shapes in short challenge sets.",
     tags: ["educational", "geometry"],
     category: "educational",
@@ -137,6 +151,7 @@ export const GAMES: Game[] = [
   {
     slug: "orbit-puzzle",
     title: "Orbit Puzzle",
+    icon: "🧩",
     description: "Rotate rings and align paths to guide energy cores home.",
     tags: ["puzzles", "logic"],
     category: "puzzles",
@@ -146,6 +161,7 @@ export const GAMES: Game[] = [
   {
     slug: "maze-drift",
     title: "Maze Drift",
+    icon: "🌀",
     description: "Steer through shifting mazes with careful timing.",
     tags: ["puzzles", "maze"],
     category: "puzzles",
@@ -155,6 +171,7 @@ export const GAMES: Game[] = [
   {
     slug: "pattern-lock",
     title: "Pattern Lock",
+    icon: "🔐",
     description: "Repeat growing patterns before the timer runs out.",
     tags: ["puzzles", "memory"],
     category: "puzzles",
@@ -164,6 +181,7 @@ export const GAMES: Game[] = [
   {
     slug: "block-logic",
     title: "Block Logic",
+    icon: "🧊",
     description: "Slide blocks into place to complete each board.",
     tags: ["puzzles", "strategy"],
     category: "puzzles",
