@@ -1,0 +1,16 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="640" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="2" fill="rgba(255,255,255,0.16)"/>
+    </pattern>
+  </defs>
+  <rect width="640" height="360" rx="24" fill="url(#bg)"/>
+  <rect width="640" height="360" rx="24" fill="url(#dots)"/>
+  <rect x="24" y="24" width="592" height="312" rx="18" fill="rgba(17,24,39,0.22)" stroke="rgba(255,255,255,0.25)"/>
+  <text x="58" y="166" font-family="Arial, Helvetica, sans-serif" font-size="68">🧩</text>
+  <text x="58" y="250" fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="44">Orbit Puzzle</text>
+</svg>

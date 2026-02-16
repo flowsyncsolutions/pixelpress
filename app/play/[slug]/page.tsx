@@ -1,6 +1,7 @@
 import ExitGate from "@/src/components/ExitGate";
 import { ALLOWED_IFRAME_HOSTS, getGameBySlug } from "@/src/lib/games";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 
 type PlayGamePageProps = {
@@ -39,13 +40,22 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
 
       <div className={`${THEME.surfaces.card} p-6`}>
         <div className={`mb-3 h-1.5 rounded-full ${accent.ribbon}`} />
-        <div className="relative flex items-start gap-4">
-          <div
-            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border text-3xl ${accent.icon}`}
-          >
-            <span aria-hidden="true">{game.icon}</span>
+        <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+          <div className="relative aspect-[16/10] overflow-hidden rounded-xl border border-slate-200/15">
+            <Image
+              src={game.cover}
+              alt={`${game.title} cover`}
+              fill
+              sizes="220px"
+              className="object-cover"
+            />
           </div>
           <div className="space-y-2">
+            <div
+              className={`inline-flex h-12 w-12 items-center justify-center rounded-xl border text-2xl ${accent.icon}`}
+            >
+              <span aria-hidden="true">{game.icon}</span>
+            </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white">{game.title}</h1>
             <p className="max-w-2xl text-slate-300">{game.description}</p>
           </div>
