@@ -16,6 +16,7 @@ export type Game = {
   category: GameCategory;
   status: "live" | "coming_soon";
   embedType: "internal" | "iframe";
+  internalEngine?: "tictactoe";
   embedSrc?: string;
 };
 
@@ -86,6 +87,7 @@ export const GAMES: Game[] = [
     category: "classics",
     status: "live",
     embedType: "internal",
+    internalEngine: "tictactoe",
   },
   {
     slug: "memory-match",
