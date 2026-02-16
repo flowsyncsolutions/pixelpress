@@ -39,3 +39,10 @@ body {
 a {
   color: inherit;
 }
+
+.arcade-glow {
+  box-shadow:
+    0 0 0 1px rgb(167 139 250 / 0.24),
+    0 0 18px rgb(139 92 246 / 0.2),
+    0 16px 32px rgb(2 6 23 / 0.42);
+}
