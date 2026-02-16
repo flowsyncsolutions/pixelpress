@@ -45,11 +45,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-black text-zinc-100 antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
       >
-        <header className="sticky top-0 z-20 border-b border-white/10 bg-black/90 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-slate-200/10 bg-slate-950/85 backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
-            <Link href="/" className="text-lg font-semibold tracking-tight text-white">
+            <Link href="/" className="text-lg font-semibold tracking-tight text-slate-100">
               PixelPress
             </Link>
             <nav className="flex items-center gap-2 text-xs sm:gap-4 sm:text-sm">
@@ -57,7 +57,7 @@ export default function RootLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-md px-2 py-1 text-zinc-300 transition hover:bg-white/10 hover:text-white"
+                  className="rounded-md px-2 py-1 text-slate-300 transition hover:bg-slate-800 hover:text-slate-100"
                 >
                   {item.label}
                 </Link>

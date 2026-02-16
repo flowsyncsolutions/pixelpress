@@ -1,5 +1,6 @@
 import ExitGate from "@/src/components/ExitGate";
 import { ALLOWED_IFRAME_HOSTS, getGameBySlug } from "@/src/lib/games";
+import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
 import { notFound } from "next/navigation";
 
 type PlayGamePageProps = {
@@ -30,15 +31,18 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
     notFound();
   }
 
+  const accent = ACCENT_STYLES[game.accent];
+
   return (
     <section className="space-y-6">
       <ExitGate />
 
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_16px_70px_rgba(8,145,178,0.2)]">
-        <div className="pointer-events-none absolute -left-8 -top-14 h-36 w-36 rounded-full bg-cyan-400/20 blur-3xl" />
-
+      <div className={`${THEME.surfaces.card} p-6`}>
+        <div className={`mb-3 h-1.5 rounded-full ${accent.ribbon}`} />
         <div className="relative flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-200/30 bg-cyan-300/10 text-3xl">
+          <div
+            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border text-3xl ${accent.icon}`}
+          >
             <span aria-hidden="true">{game.icon}</span>
           </div>
           <div className="space-y-2">
@@ -49,7 +53,9 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
       </div>
 
       {game.embedType === "iframe" && game.embedSrc && isAllowedIframeSrc(game.embedSrc) ? (
-        <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-cyan-200/20 bg-slate-950 shadow-[0_16px_36px_rgba(34,211,238,0.18)]">
+        <div
+          className={`relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200/20 bg-slate-950 ${accent.tileGlow}`}
+        >
           <iframe
             title={`${game.title} game`}
             src={game.embedSrc}
@@ -63,7 +69,7 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
           This game is currently disabled.
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-cyan-200/30 bg-slate-950/80 p-10 text-center text-sm text-slate-200">
+        <div className="rounded-2xl border border-dashed border-slate-200/25 bg-slate-900/85 p-10 text-center text-sm text-slate-200">
           Internal game engine coming soon.
         </div>
       )}

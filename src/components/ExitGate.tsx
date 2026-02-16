@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { THEME } from "@/src/lib/theme";
 
 export default function ExitGate() {
   const router = useRouter();
@@ -57,14 +58,14 @@ export default function ExitGate() {
       <button
         type="button"
         onClick={handleExitClick}
-        className="fixed right-4 top-20 z-40 rounded-xl border border-cyan-200/50 bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_10px_28px_rgba(34,211,238,0.45)] transition hover:bg-cyan-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
+        className={`fixed right-4 top-20 z-40 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-[0_10px_22px_rgba(2,6,23,0.4)] transition focus-visible:outline-2 focus-visible:outline-offset-2 ${THEME.brandColors.secondaryButton}`}
       >
         Exit
       </button>
 
       {isOpen ? (
         <div className="fixed inset-0 z-50 flex items-start justify-end bg-slate-950/70 p-4 pt-24">
-          <div className="w-full max-w-xs rounded-2xl border border-cyan-200/25 bg-slate-950 p-4 shadow-[0_18px_36px_rgba(15,23,42,0.8)]">
+          <div className="w-full max-w-xs rounded-2xl border border-slate-200/20 bg-slate-900 p-4 shadow-[0_18px_36px_rgba(15,23,42,0.8)]">
             <h2 className="mb-3 text-base font-semibold text-white">Parent PIN</h2>
             <input
               type="password"
@@ -75,7 +76,7 @@ export default function ExitGate() {
                 const digitsOnly = event.target.value.replace(/\D/g, "");
                 setPinInput(digitsOnly.slice(0, 4));
               }}
-              className="w-full rounded-xl border border-white/20 bg-slate-900 px-3 py-2.5 text-base text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-300/60"
+              className="w-full rounded-xl border border-white/20 bg-slate-950 px-3 py-2.5 text-base text-white outline-none ring-0 placeholder:text-slate-500 focus:border-violet-300/60"
               placeholder="Enter 4-digit PIN"
             />
 
@@ -85,7 +86,7 @@ export default function ExitGate() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="flex-1 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${THEME.brandColors.primaryButton}`}
               >
                 Confirm Exit
               </button>
