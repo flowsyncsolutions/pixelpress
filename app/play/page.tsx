@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import ExitGate from "@/src/components/ExitGate";
+import GameCover from "@/src/components/GameCover";
 import {
   CATEGORIES,
   getAllGames,
@@ -94,7 +94,12 @@ export default function PlayPage() {
                 className="flex items-center gap-3 rounded-xl border border-slate-200/10 bg-slate-900/80 p-2 transition hover:bg-slate-800/85"
               >
                 <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200/10">
-                  <Image src={game.cover} alt={`${game.title} cover`} fill sizes="96px" className="object-cover" />
+                  <GameCover
+                    title={game.title}
+                    icon={game.icon}
+                    accent={game.accent}
+                    cover={game.cover}
+                  />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold text-slate-100">{game.title}</p>
@@ -118,7 +123,12 @@ export default function PlayPage() {
                 className="flex items-center gap-3 rounded-xl border border-slate-200/10 bg-slate-900/80 p-2 transition hover:bg-slate-800/85"
               >
                 <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200/10">
-                  <Image src={game.cover} alt={`${game.title} cover`} fill sizes="96px" className="object-cover" />
+                  <GameCover
+                    title={game.title}
+                    icon={game.icon}
+                    accent={game.accent}
+                    cover={game.cover}
+                  />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold text-slate-100">{game.title}</p>
@@ -141,12 +151,11 @@ export default function PlayPage() {
                   className="rounded-xl border border-slate-200/10 bg-slate-900/85 transition hover:-translate-y-0.5"
                 >
                   <div className="relative aspect-[16/9] overflow-hidden rounded-t-xl">
-                    <Image
-                      src={game.cover}
-                      alt={`${game.title} cover`}
-                      fill
-                      sizes="(max-width: 1024px) 50vw, 33vw"
-                      className="object-cover"
+                    <GameCover
+                      title={game.title}
+                      icon={game.icon}
+                      accent={game.accent}
+                      cover={game.cover}
                     />
                   </div>
                   <div className="p-3">
@@ -218,12 +227,11 @@ export default function PlayPage() {
             >
               <div className={`h-1.5 ${accent.ribbon}`} />
               <div className="relative aspect-[16/9]">
-                <Image
-                  src={game.cover}
-                  alt={`${game.title} cover`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  className="object-cover"
+                <GameCover
+                  title={game.title}
+                  icon={game.icon}
+                  accent={game.accent}
+                  cover={game.cover}
                 />
               </div>
 
@@ -283,7 +291,12 @@ export default function PlayPage() {
           {allGames.slice(0, 4).map((game, index) => (
             <Link key={game.slug} href={`/play/${game.slug}`} className="overflow-hidden rounded-xl border border-slate-200/10 bg-slate-900/85 transition hover:-translate-y-0.5">
               <div className="relative aspect-[16/9]">
-                <Image src={game.cover} alt={`${game.title} cover`} fill sizes="(max-width: 1024px) 50vw, 25vw" className="object-cover" />
+                <GameCover
+                  title={game.title}
+                  icon={game.icon}
+                  accent={game.accent}
+                  cover={game.cover}
+                />
               </div>
               <div className="p-3">
                 <div className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white">

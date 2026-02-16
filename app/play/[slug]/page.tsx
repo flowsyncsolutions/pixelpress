@@ -1,7 +1,7 @@
 import ExitGate from "@/src/components/ExitGate";
+import GameCover from "@/src/components/GameCover";
 import { ALLOWED_IFRAME_HOSTS, getGameBySlug } from "@/src/lib/games";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 
 type PlayGamePageProps = {
@@ -42,12 +42,11 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
         <div className={`mb-3 h-1.5 rounded-full ${accent.ribbon}`} />
         <div className="grid gap-4 md:grid-cols-[220px_1fr]">
           <div className="relative aspect-[16/10] overflow-hidden rounded-xl border border-slate-200/15">
-            <Image
-              src={game.cover}
-              alt={`${game.title} cover`}
-              fill
-              sizes="220px"
-              className="object-cover"
+            <GameCover
+              title={game.title}
+              icon={game.icon}
+              accent={game.accent}
+              cover={game.cover}
             />
           </div>
           <div className="space-y-2">

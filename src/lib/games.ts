@@ -8,7 +8,7 @@ export type Game = {
   slug: string;
   title: string;
   icon: string;
-  cover: string;
+  cover?: string;
   accent: AccentTone;
   featured: boolean;
   description: string;
@@ -21,12 +21,15 @@ export type Game = {
 
 export const ALLOWED_IFRAME_HOSTS: string[] = [];
 
+// To add a real game cover image:
+// 1) drop `public/covers/{slug}.png`
+// 2) set `cover: "/covers/{slug}.png"` on that game entry below.
 export const GAMES: Game[] = [
   {
     slug: "rainbow-hop",
     title: "Rainbow Hop",
     icon: "🌈",
-    cover: "/covers/rainbow-hop.svg",
+    cover: "/covers/rainbow-hop.png",
     accent: "rose",
     featured: true,
     description: "Jump across floating colors and avoid the splash zones.",
@@ -39,7 +42,6 @@ export const GAMES: Game[] = [
     slug: "bubble-pop-party",
     title: "Bubble Pop Party",
     icon: "🫧",
-    cover: "/covers/bubble-pop-party.svg",
     accent: "cyan",
     featured: false,
     description: "Pop matching bubbles before the board fills up.",
@@ -52,7 +54,6 @@ export const GAMES: Game[] = [
     slug: "space-pet-rescue",
     title: "Space Pet Rescue",
     icon: "👾",
-    cover: "/covers/space-pet-rescue.svg",
     accent: "violet",
     featured: true,
     description: "Guide friendly pets through easy space lanes.",
@@ -65,7 +66,6 @@ export const GAMES: Game[] = [
     slug: "color-runner-jr",
     title: "Color Runner Jr",
     icon: "🏃",
-    cover: "/covers/color-runner-jr.svg",
     accent: "emerald",
     featured: false,
     description: "Dash through bright tracks and collect safe boosts.",
@@ -78,7 +78,7 @@ export const GAMES: Game[] = [
     slug: "tic-tac-toe",
     title: "Tic Tac Toe",
     icon: "⭕",
-    cover: "/covers/tic-tac-toe.svg",
+    cover: "/covers/tic-tac-toe.png",
     accent: "amber",
     featured: false,
     description: "Classic 3x3 strategy rounds for quick wins.",
@@ -91,7 +91,7 @@ export const GAMES: Game[] = [
     slug: "memory-match",
     title: "Memory Match",
     icon: "🧠",
-    cover: "/covers/memory-match.svg",
+    cover: "/covers/memory-match.png",
     accent: "emerald",
     featured: true,
     description: "Flip cards and find all pairs with fewer moves.",
@@ -104,7 +104,6 @@ export const GAMES: Game[] = [
     slug: "snake",
     title: "Snake",
     icon: "🐍",
-    cover: "/covers/snake.svg",
     accent: "cyan",
     featured: false,
     description: "Collect pixels, grow longer, and avoid walls.",
@@ -117,7 +116,6 @@ export const GAMES: Game[] = [
     slug: "breakout",
     title: "Breakout",
     icon: "🧱",
-    cover: "/covers/breakout.svg",
     accent: "amber",
     featured: false,
     description: "Bounce the ball and clear every block.",
@@ -130,7 +128,7 @@ export const GAMES: Game[] = [
     slug: "pong",
     title: "Pong",
     icon: "🏓",
-    cover: "/covers/pong.svg",
+    cover: "/covers/pong.png",
     accent: "violet",
     featured: false,
     description: "Retro paddle battles with simple controls.",
@@ -144,7 +142,6 @@ export const GAMES: Game[] = [
     slug: "math-sprint",
     title: "Math Sprint",
     icon: "➗",
-    cover: "/covers/math-sprint.svg",
     accent: "emerald",
     featured: false,
     description: "Solve quick arithmetic to keep your runner moving.",
@@ -157,7 +154,6 @@ export const GAMES: Game[] = [
     slug: "word-trails",
     title: "Word Trails",
     icon: "🔤",
-    cover: "/covers/word-trails.svg",
     accent: "rose",
     featured: false,
     description: "Build words from letter paths across the board.",
@@ -170,7 +166,6 @@ export const GAMES: Game[] = [
     slug: "planet-facts-quiz",
     title: "Planet Facts Quiz",
     icon: "🪐",
-    cover: "/covers/planet-facts-quiz.svg",
     accent: "violet",
     featured: true,
     description: "Pick the right fact to travel through the solar system.",
@@ -183,7 +178,6 @@ export const GAMES: Game[] = [
     slug: "shape-lab",
     title: "Shape Lab",
     icon: "📐",
-    cover: "/covers/shape-lab.svg",
     accent: "amber",
     featured: false,
     description: "Match 2D and 3D shapes in short challenge sets.",
@@ -196,7 +190,7 @@ export const GAMES: Game[] = [
     slug: "orbit-puzzle",
     title: "Orbit Puzzle",
     icon: "🧩",
-    cover: "/covers/orbit-puzzle.svg",
+    cover: "/covers/orbit-puzzle.png",
     accent: "cyan",
     featured: false,
     description: "Rotate rings and align paths to guide energy cores home.",
@@ -209,7 +203,6 @@ export const GAMES: Game[] = [
     slug: "maze-drift",
     title: "Maze Drift",
     icon: "🌀",
-    cover: "/covers/maze-drift.svg",
     accent: "emerald",
     featured: false,
     description: "Steer through shifting mazes with careful timing.",
@@ -222,7 +215,6 @@ export const GAMES: Game[] = [
     slug: "pattern-lock",
     title: "Pattern Lock",
     icon: "🔐",
-    cover: "/covers/pattern-lock.svg",
     accent: "rose",
     featured: false,
     description: "Repeat growing patterns before the timer runs out.",
@@ -235,7 +227,6 @@ export const GAMES: Game[] = [
     slug: "block-logic",
     title: "Block Logic",
     icon: "🧊",
-    cover: "/covers/block-logic.svg",
     accent: "cyan",
     featured: false,
     description: "Slide blocks into place to complete each board.",
