@@ -16,7 +16,7 @@ export type Game = {
   category: GameCategory;
   status: "live" | "coming_soon";
   embedType: "internal" | "iframe";
-  internalEngine?: "tictactoe";
+  internalEngine?: "tictactoe" | "spaceRunner";
   embedSrc?: string;
 };
 
@@ -62,6 +62,19 @@ export const GAMES: Game[] = [
     category: "kids",
     status: "coming_soon",
     embedType: "internal",
+  },
+  {
+    slug: "space-runner",
+    title: "Space Runner",
+    icon: "🚀",
+    accent: "cyan",
+    featured: true,
+    description: "Jump over incoming asteroids in a speedy space sprint.",
+    tags: ["kids", "runner", "space"],
+    category: "kids",
+    status: "live",
+    embedType: "internal",
+    internalEngine: "spaceRunner",
   },
   {
     slug: "color-runner-jr",

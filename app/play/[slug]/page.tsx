@@ -2,6 +2,7 @@ import ExitGate from "@/src/components/ExitGate";
 import GameCover from "@/src/components/GameCover";
 import { ALLOWED_IFRAME_HOSTS, getGameBySlug } from "@/src/lib/games";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
+import SpaceRunner from "@/src/games/spaceRunner/SpaceRunner";
 import TicTacToe from "@/src/games/tictactoe/TicTacToe";
 import { notFound } from "next/navigation";
 
@@ -82,6 +83,8 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
         <>
           {game.internalEngine === "tictactoe" ? (
             <TicTacToe />
+          ) : game.internalEngine === "spaceRunner" ? (
+            <SpaceRunner />
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-200/25 bg-slate-900/85 p-10 text-center text-sm text-slate-200">
               Internal game engine coming soon.
