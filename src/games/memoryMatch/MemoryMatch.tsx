@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
 
-type Difficulty = "easy" | "normal";
+type Difficulty = "easy" | "normal" | "hard";
 type GameState = "ready" | "playing" | "won";
 
 type Card = {
@@ -16,11 +16,32 @@ type Card = {
 const CARD_VALUES: Record<Difficulty, string[]> = {
   easy: ["🚀", "🌙", "⭐", "🪐", "☄️", "👽"],
   normal: ["🚀", "🌙", "⭐", "🪐", "☄️", "👽", "🛰️", "🌌"],
+  hard: [
+    "🚀",
+    "🌙",
+    "⭐",
+    "🪐",
+    "☄️",
+    "👽",
+    "🛰️",
+    "🌌",
+    "🌠",
+    "🛸",
+    "🔭",
+    "🌍",
+    "☀️",
+    "⚡",
+    "🌈",
+    "🦄",
+    "🐱",
+    "🐶",
+  ],
 };
 
 const BEST_KEYS: Record<Difficulty, string> = {
   easy: "pp_memory_best_easy",
   normal: "pp_memory_best_normal",
+  hard: "pp_memory_best_hard",
 };
 
 const CONFETTI_PIECES = [
@@ -92,6 +113,7 @@ export default function MemoryMatch() {
   const [bestMoves, setBestMoves] = useState<Record<Difficulty, number | null>>({
     easy: null,
     normal: null,
+    hard: null,
   });
 
   const cardsRef = useRef<Card[]>(cards);
@@ -107,6 +129,14 @@ export default function MemoryMatch() {
 
   const totalPairs = CARD_VALUES[difficulty].length;
   const currentBest = bestMoves[difficulty];
+  const gridClass =
+    difficulty === "easy" ? "grid-cols-3 gap-2 sm:gap-3" : difficulty === "normal" ? "grid-cols-4 gap-2 sm:gap-3" : "grid-cols-6 gap-1.5 sm:gap-2";
+  const cardSizeClass =
+    difficulty === "easy"
+      ? "aspect-[4/5] min-h-[88px]"
+      : difficulty === "normal"
+        ? "aspect-[4/5] min-h-[72px]"
+        : "aspect-square min-h-[50px] sm:min-h-[56px]";
 
   const statusText = useMemo(() => {
     if (gameState === "won") {
@@ -186,7 +216,10 @@ export default function MemoryMatch() {
       if (mode === "easy") {
         return { ...previous, easy: finalMoves };
       }
-      return { ...previous, normal: finalMoves };
+      if (mode === "normal") {
+        return { ...previous, normal: finalMoves };
+      }
+      return { ...previous, hard: finalMoves };
     });
   }, []);
 
@@ -317,6 +350,7 @@ export default function MemoryMatch() {
     setBestMoves({
       easy: parseStoredBest(window.localStorage.getItem(BEST_KEYS.easy)),
       normal: parseStoredBest(window.localStorage.getItem(BEST_KEYS.normal)),
+      hard: parseStoredBest(window.localStorage.getItem(BEST_KEYS.hard)),
     });
   }, []);
 
@@ -381,6 +415,18 @@ export default function MemoryMatch() {
               >
                 Normal (4x4)
               </button>
+              <button
+                type="button"
+                onClick={() => handleDifficultyChange("hard")}
+                aria-pressed={difficulty === "hard"}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                  difficulty === "hard"
+                    ? "bg-violet-400 text-violet-50 shadow-[0_0_12px_rgba(167,139,250,0.45)]"
+                    : "text-slate-200 hover:bg-slate-800"
+                }`}
+              >
+                Hard (6x6)
+              </button>
             </div>
             <button
               type="button"
@@ -417,11 +463,7 @@ export default function MemoryMatch() {
             </div>
           ) : null}
 
-          <div
-            className={`grid gap-2 sm:gap-3 ${difficulty === "easy" ? "grid-cols-3" : "grid-cols-4"} ${
-              lockBoard ? "pointer-events-none" : ""
-            }`}
-          >
+          <div className={`grid ${gridClass} ${lockBoard ? "pointer-events-none" : ""}`}>
             {cards.map((card, index) => {
               const isFaceUp = card.isFlipped || card.isMatched;
 
@@ -433,7 +475,7 @@ export default function MemoryMatch() {
                   disabled={lockBoard || card.isMatched || card.isFlipped || gameState === "won"}
                   className={`${arcade.tileButton} ${
                     isFaceUp ? arcade.tileButtonPressed : ""
-                  } aspect-[4/5] min-h-[88px] overflow-hidden ${
+                  } ${cardSizeClass} overflow-hidden ${
                     card.isMatched
                       ? "border-emerald-200/75 bg-emerald-300/15 shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_18px_rgba(52,211,153,0.3)]"
                       : ""
@@ -444,10 +486,12 @@ export default function MemoryMatch() {
                 >
                   <span className={`memory-inner ${isFaceUp ? "is-open" : ""}`}>
                     <span className="memory-face memory-front">
-                      <span className="text-xl text-violet-100/90">✦</span>
+                      <span className={`${difficulty === "hard" ? "text-base" : "text-xl"} text-violet-100/90`}>✦</span>
                     </span>
                     <span className="memory-face memory-back">
-                      <span className="text-4xl leading-none">{card.value}</span>
+                      <span className={`${difficulty === "hard" ? "text-2xl sm:text-3xl" : "text-4xl"} leading-none`}>
+                        {card.value}
+                      </span>
                     </span>
                   </span>
                 </button>
