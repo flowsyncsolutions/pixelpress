@@ -1,7 +1,6 @@
 const STARS_TOTAL_KEY = "pp_stars_total";
 const STREAK_COUNT_KEY = "pp_streak_count";
 const LAST_PLAY_DATE_KEY = "pp_last_play_date";
-const PLAYS_COUNT_KEY = "pp_plays_count";
 
 function readNumber(key: string): number {
   if (typeof window === "undefined") {
@@ -83,16 +82,6 @@ export function markPlayedToday(): void {
 
   writeNumber(STREAK_COUNT_KEY, nextStreak);
   window.localStorage.setItem(LAST_PLAY_DATE_KEY, today);
-}
-
-export function getPlaysCount(): number {
-  return readNumber(PLAYS_COUNT_KEY);
-}
-
-export function incrementPlay(): number {
-  const next = getPlaysCount() + 1;
-  writeNumber(PLAYS_COUNT_KEY, next);
-  return next;
 }
 
 export function getDailySeededItems<T>(items: T[], count: number, dateKey = getTodayKey()): T[] {

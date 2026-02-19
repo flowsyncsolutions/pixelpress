@@ -14,6 +14,7 @@ import {
 } from "@/src/lib/games";
 import { getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progress";
 import { getTimeState } from "@/src/lib/timeLimit";
+import { getTrialStatus, startTrial } from "@/src/lib/trial";
 import { ACCENT_STYLES, THEME, type AccentTone } from "@/src/lib/theme";
 
 const CATEGORY_META: Record<
@@ -33,6 +34,8 @@ export default function PlayPage() {
   const [streak, setStreak] = useState(0);
   const [timeEnabled, setTimeEnabled] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(14);
+  const [trialExpired, setTrialExpired] = useState(false);
 
   const counts = getCategoryCounts();
   const allGames = useMemo(() => getAllGames(), []);
@@ -51,8 +54,14 @@ export default function PlayPage() {
     }
 
     const syncProgress = () => {
+      startTrial();
       setStars(getStarsTotal());
       setStreak(getStreak());
+
+      const trial = getTrialStatus();
+      setTrialDaysRemaining(trial.daysRemaining);
+      setTrialExpired(trial.isExpired);
+
       const time = getTimeState();
       setTimeEnabled(time.enabled);
       setRemainingSeconds(time.remainingSeconds);
@@ -69,7 +78,7 @@ export default function PlayPage() {
 
   return (
     <section className="space-y-5 pb-5">
-      <PlaySoftGate notNowHref="/play" />
+      <PlaySoftGate />
       <ExitGate />
 
       <header className={`${THEME.surfaces.card} p-4`}>
@@ -90,6 +99,15 @@ export default function PlayPage() {
                 ⏱️ Time left: {Math.ceil(remainingSeconds / 60)}m
               </span>
             ) : null}
+            {trialExpired ? (
+              <span className="inline-flex items-center gap-2 rounded-xl border border-rose-200/35 bg-rose-300/15 px-3 py-2 text-sm font-semibold text-rose-100">
+                🧾 Trial expired
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 rounded-xl border border-indigo-200/30 bg-indigo-300/10 px-3 py-2 text-sm font-semibold text-indigo-100">
+                🗓️ Trial: {trialDaysRemaining} days left
+              </span>
+            )}
           </div>
         </div>
       </header>

@@ -9,9 +9,14 @@ import {
   resetTodayUsage,
   setTimeSettings,
 } from "@/src/lib/timeLimit";
+import {
+  getTrialStatus,
+  isTrialOverrideUnlocked,
+  resetTrial,
+  setTrialOverrideUnlocked,
+} from "@/src/lib/trial";
 
 const PIN_KEY = "pp_pin";
-const UNLOCKED_KEY = "pp_unlocked";
 const EXIT_PIN_KEY = "pp_exit_requires_pin";
 
 type Message = {
@@ -19,7 +24,12 @@ type Message = {
   text: string;
 };
 
-type PinAction = "save_time_settings" | "reset_today" | "add_extra_time" | "set_unlocked_testing";
+type PinAction =
+  | "save_time_settings"
+  | "reset_today"
+  | "add_extra_time"
+  | "reset_trial"
+  | "set_trial_override";
 
 const LIMIT_OPTIONS = [5, 10, 15, 30, 60] as const;
 
@@ -32,8 +42,11 @@ export default function ParentPage() {
   const [timeUsedTodaySeconds, setTimeUsedTodaySeconds] = useState(0);
   const [timeRemainingSeconds, setTimeRemainingSeconds] = useState(0);
 
-  const [unlockedTesting, setUnlockedTesting] = useState(false);
-  const [pendingUnlockedTesting, setPendingUnlockedTesting] = useState(false);
+  const [trialOverrideEnabled, setTrialOverrideEnabled] = useState(false);
+  const [pendingTrialOverride, setPendingTrialOverride] = useState(false);
+  const [trialHasStarted, setTrialHasStarted] = useState(false);
+  const [trialExpired, setTrialExpired] = useState(false);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(14);
 
   const [message, setMessage] = useState<Message | null>(null);
   const [pinModalOpen, setPinModalOpen] = useState(false);
@@ -54,6 +67,14 @@ export default function ParentPage() {
     setTimeLimitMinutesDraft(settings.limitMinutes);
   }, []);
 
+  const refreshTrialSummary = useCallback(() => {
+    const trial = getTrialStatus();
+    setTrialHasStarted(trial.hasStarted);
+    setTrialExpired(trial.isExpired);
+    setTrialDaysRemaining(trial.daysRemaining);
+    setTrialOverrideEnabled(isTrialOverrideUnlocked());
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -61,21 +82,25 @@ export default function ParentPage() {
 
     const existingPin = window.localStorage.getItem(PIN_KEY);
     setPinSet(Boolean(existingPin && /^\d{4}$/.test(existingPin)));
-    setUnlockedTesting(window.localStorage.getItem(UNLOCKED_KEY) === "true");
 
     // Exit should not be PIN-gated in this phase.
     window.localStorage.setItem(EXIT_PIN_KEY, "false");
 
-    refreshTimeSettingsDraft();
-    refreshTimeSummary();
-    const intervalId = window.setInterval(refreshTimeSummary, 1000);
-    window.addEventListener("storage", refreshTimeSummary);
+    const syncParentView = () => {
+      refreshTimeSettingsDraft();
+      refreshTimeSummary();
+      refreshTrialSummary();
+    };
+
+    syncParentView();
+    const intervalId = window.setInterval(syncParentView, 1000);
+    window.addEventListener("storage", syncParentView);
 
     return () => {
       window.clearInterval(intervalId);
-      window.removeEventListener("storage", refreshTimeSummary);
+      window.removeEventListener("storage", syncParentView);
     };
-  }, [refreshTimeSettingsDraft, refreshTimeSummary]);
+  }, [refreshTimeSettingsDraft, refreshTimeSummary, refreshTrialSummary]);
 
   const savePin = () => {
     if (!/^\d{4}$/.test(pinInput)) {
@@ -129,14 +154,18 @@ export default function ParentPage() {
     } else if (pendingAction === "add_extra_time") {
       addExtraMinutes(10);
       setMessage({ type: "success", text: "Added 10 more minutes for today." });
-    } else if (pendingAction === "set_unlocked_testing") {
-      window.localStorage.setItem(UNLOCKED_KEY, String(pendingUnlockedTesting));
-      setUnlockedTesting(pendingUnlockedTesting);
-      setMessage({ type: "success", text: "Testing unlock updated." });
+    } else if (pendingAction === "reset_trial") {
+      resetTrial();
+      setMessage({ type: "success", text: "Trial reset. It will restart on next /play visit." });
+    } else if (pendingAction === "set_trial_override") {
+      setTrialOverrideUnlocked(pendingTrialOverride);
+      setTrialOverrideEnabled(pendingTrialOverride);
+      setMessage({ type: "success", text: "Trial override updated." });
     }
 
     refreshTimeSettingsDraft();
     refreshTimeSummary();
+    refreshTrialSummary();
     setPinModalOpen(false);
     setPinModalInput("");
     setPinModalMessage(null);
@@ -250,15 +279,36 @@ export default function ParentPage() {
       </div>
 
       <div className="space-y-3 rounded-xl border border-white/10 bg-zinc-950/70 p-4">
-        <h2 className="text-lg font-semibold text-white">Soft Gate (Testing)</h2>
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold text-white">Trial Controls (Testing)</h2>
+          <p className="text-sm text-zinc-400">All trial changes require PIN confirmation.</p>
+        </div>
+
+        <div className="rounded-lg border border-white/10 px-4 py-3">
+          <p className="text-sm text-zinc-200">
+            Trial status:{" "}
+            {trialHasStarted ? (trialExpired ? "Expired" : `Active (${trialDaysRemaining} days left)`) : "Not started"}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => openPinModalForAction("reset_trial")}
+            className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20"
+          >
+            Reset Trial
+          </button>
+        </div>
+
         <label className="flex items-center justify-between gap-4 rounded-lg border border-white/10 px-4 py-3">
-          <span className="text-sm text-zinc-200">Unlocked (testing)</span>
+          <span className="text-sm text-zinc-200">Force Unlock (testing)</span>
           <input
             type="checkbox"
-            checked={unlockedTesting}
+            checked={trialOverrideEnabled}
             onChange={(event) => {
-              setPendingUnlockedTesting(event.target.checked);
-              openPinModalForAction("set_unlocked_testing");
+              setPendingTrialOverride(event.target.checked);
+              openPinModalForAction("set_trial_override");
             }}
             className="h-5 w-5 accent-white"
           />

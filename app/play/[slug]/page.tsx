@@ -41,7 +41,7 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
 
   return (
     <section className="space-y-6">
-      <PlaySoftGate trackPlayVisit notNowHref="/play" />
+      <PlaySoftGate />
       <TimeUpOverlay fixed backHref="/play" />
       <ExitGate />
 

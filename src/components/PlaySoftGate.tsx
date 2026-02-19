@@ -3,22 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
-import { getPlaysCount, incrementPlay } from "@/src/lib/progress";
+import { getTrialStatus, isTrialOverrideUnlocked, startTrial } from "@/src/lib/trial";
 
-const UNLOCKED_KEY = "pp_unlocked";
-const PLAY_LIMIT = 10;
-
-type PlaySoftGateProps = {
-  trackPlayVisit?: boolean;
-  notNowHref?: string;
+type TrialSnapshot = {
+  isExpired: boolean;
+  daysRemaining: number;
+  hasStarted: boolean;
 };
 
-export default function PlaySoftGate({
-  trackPlayVisit = false,
-  notNowHref = "/play",
-}: PlaySoftGateProps) {
+export default function PlaySoftGate() {
   const [blocked, setBlocked] = useState(false);
-  const [playsCount, setPlaysCount] = useState(0);
+  const [trial, setTrial] = useState<TrialSnapshot>({
+    isExpired: false,
+    daysRemaining: 14,
+    hasStarted: false,
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -26,46 +25,63 @@ export default function PlaySoftGate({
     }
 
     const syncGate = () => {
-      const unlocked = window.localStorage.getItem(UNLOCKED_KEY) === "true";
-      let plays = getPlaysCount();
-
-      if (trackPlayVisit && !unlocked && plays < PLAY_LIMIT) {
-        plays = incrementPlay();
-      }
-
-      setPlaysCount(plays);
-      setBlocked(!unlocked && plays >= PLAY_LIMIT);
+      startTrial();
+      const status = getTrialStatus();
+      const overrideUnlocked = isTrialOverrideUnlocked();
+      setTrial({
+        isExpired: status.isExpired,
+        daysRemaining: status.daysRemaining,
+        hasStarted: status.hasStarted,
+      });
+      setBlocked(status.isExpired && !overrideUnlocked);
     };
 
     syncGate();
+    const intervalId = window.setInterval(syncGate, 1000);
 
     const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key === UNLOCKED_KEY || event.key === "pp_plays_count") {
+      if (
+        !event.key ||
+        event.key === "pp_trial_started_at" ||
+        event.key === "pp_trial_days" ||
+        event.key === "pp_trial_override_unlocked"
+      ) {
         syncGate();
       }
     };
 
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [trackPlayVisit]);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   if (!blocked) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
       <div className={`${arcade.gameFrame} w-full max-w-md`}>
-        <h2 className={`text-2xl font-black ${arcade.glowText}`}>Parent Unlock Required</h2>
+        <h2 className={`text-2xl font-black ${arcade.glowText}`}>Your trial has ended</h2>
         <p className={`mt-2 text-sm ${arcade.subtleText}`}>PixelPress is ad-free and parent-supported.</p>
-        <p className="mt-2 text-xs text-slate-400">Free plays used: {playsCount}</p>
+        {trial.hasStarted ? (
+          <p className="mt-2 text-xs text-slate-400">
+            Trial days remaining: {trial.daysRemaining}
+          </p>
+        ) : null}
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          <Link href="/parent" className={`${arcade.primaryButton} flex-1 text-center`}>
-            Go to Parent Mode
-          </Link>
-          <Link href={notNowHref} className={`${arcade.secondaryButton} flex-1 text-center`}>
-            Not now
+          <button
+            type="button"
+            disabled
+            className={`${arcade.primaryButton} flex-1 cursor-not-allowed opacity-80`}
+          >
+            Join for $3.99/month (Coming Soon)
+          </button>
+          <Link href="/parent" className={`${arcade.secondaryButton} flex-1 text-center`}>
+            Parent Mode
           </Link>
         </div>
       </div>
