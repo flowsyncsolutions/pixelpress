@@ -12,6 +12,8 @@ import {
 } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
+import TimeUpOverlay from "@/src/components/TimeUpOverlay";
+import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 
 type RunnerState = "ready" | "playing" | "game_over";
 
@@ -81,6 +83,7 @@ export default function SpaceRunner() {
   const [score, setScore] = useState(0);
   const [scorePopping, setScorePopping] = useState(false);
   const [highScore, setHighScore] = useState(0);
+  const [isTimeUp, setIsTimeUp] = useState(false);
 
   const statusText = useMemo(() => {
     if (gameState === "ready") {
@@ -317,6 +320,36 @@ export default function SpaceRunner() {
     if (typeof window === "undefined") {
       return;
     }
+
+    const syncTimeState = () => {
+      resetIfNewDay();
+      const timeState = getTimeState();
+      setIsTimeUp(timeState.enabled && timeState.remainingSeconds <= 0);
+    };
+
+    syncTimeState();
+    const intervalId = window.setInterval(syncTimeState, 1000);
+    window.addEventListener("storage", syncTimeState);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("storage", syncTimeState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isTimeUp || gameState !== "playing") {
+      return;
+    }
+
+    resetIfNewDay();
+    return startSessionTick();
+  }, [gameState, isTimeUp]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
     const saved = Number(window.localStorage.getItem(HIGH_SCORE_KEY) ?? "0");
     if (Number.isFinite(saved) && saved > 0) {
       setHighScore(saved);
@@ -468,6 +501,8 @@ export default function SpaceRunner() {
             ) : null}
           </div>
         </div>
+
+        {isTimeUp ? <TimeUpOverlay backHref="/play" /> : null}
       </div>
 
       <style jsx>{`

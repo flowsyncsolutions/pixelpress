@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
+import TimeUpOverlay from "@/src/components/TimeUpOverlay";
+import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 
 type Difficulty = "easy" | "normal" | "hard";
 type GameState = "ready" | "playing" | "won";
@@ -111,6 +113,7 @@ export default function MemoryMatch() {
   const [lockBoard, setLockBoard] = useState(false);
   const [recentMatch, setRecentMatch] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isTimeUp, setIsTimeUp] = useState(false);
   const [bestMoves, setBestMoves] = useState<Record<Difficulty, number | null>>({
     easy: null,
     normal: null,
@@ -364,6 +367,36 @@ export default function MemoryMatch() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncTimeState = () => {
+      resetIfNewDay();
+      const timeState = getTimeState();
+      setIsTimeUp(timeState.enabled && timeState.remainingSeconds <= 0);
+    };
+
+    syncTimeState();
+    const intervalId = window.setInterval(syncTimeState, 1000);
+    window.addEventListener("storage", syncTimeState);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("storage", syncTimeState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isTimeUp || gameState !== "playing") {
+      return;
+    }
+
+    resetIfNewDay();
+    return startSessionTick();
+  }, [gameState, isTimeUp]);
+
+  useEffect(() => {
     return () => {
       clearFlipBackTimer();
       clearStatusTimer();
@@ -520,6 +553,8 @@ export default function MemoryMatch() {
             </div>
           ) : null}
         </div>
+
+        {isTimeUp ? <TimeUpOverlay backHref="/play" /> : null}
       </div>
 
       <style jsx>{`

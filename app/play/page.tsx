@@ -13,6 +13,7 @@ import {
   type GameCategory,
 } from "@/src/lib/games";
 import { getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progress";
+import { getTimeState } from "@/src/lib/timeLimit";
 import { ACCENT_STYLES, THEME, type AccentTone } from "@/src/lib/theme";
 
 const CATEGORY_META: Record<
@@ -30,6 +31,8 @@ export default function PlayPage() {
   const [selectedCategory, setSelectedCategory] = useState<GameCategory | "all">("all");
   const [stars, setStars] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [timeEnabled, setTimeEnabled] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
 
   const counts = getCategoryCounts();
   const allGames = useMemo(() => getAllGames(), []);
@@ -50,11 +53,18 @@ export default function PlayPage() {
     const syncProgress = () => {
       setStars(getStarsTotal());
       setStreak(getStreak());
+      const time = getTimeState();
+      setTimeEnabled(time.enabled);
+      setRemainingSeconds(time.remainingSeconds);
     };
 
     syncProgress();
+    const intervalId = window.setInterval(syncProgress, 1000);
     window.addEventListener("storage", syncProgress);
-    return () => window.removeEventListener("storage", syncProgress);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("storage", syncProgress);
+    };
   }, []);
 
   return (
@@ -75,6 +85,11 @@ export default function PlayPage() {
             <span className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/30 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100">
               🔥 Streak: {streak}
             </span>
+            {timeEnabled ? (
+              <span className="inline-flex items-center gap-2 rounded-xl border border-violet-200/30 bg-violet-300/10 px-3 py-2 text-sm font-semibold text-violet-100">
+                ⏱️ Time left: {Math.ceil(remainingSeconds / 60)}m
+              </span>
+            ) : null}
           </div>
         </div>
       </header>

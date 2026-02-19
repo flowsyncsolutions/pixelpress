@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
+import TimeUpOverlay from "@/src/components/TimeUpOverlay";
+import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 
 type Mark = "X" | "O" | null;
 type Winner = "X" | "O" | null;
@@ -142,11 +144,13 @@ export default function TicTacToe() {
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [hasCelebratedWin, setHasCelebratedWin] = useState(false);
+  const [isTimeUp, setIsTimeUp] = useState(false);
   const hasAwardedWinRef = useRef(false);
 
   const aiMark = useMemo(() => getOpponent(playerMark), [playerMark]);
   const winnerData = useMemo(() => calculateWinner(board), [board]);
   const availableMoves = useMemo(() => getAvailableMoves(board), [board]);
+  const hasStarted = useMemo(() => board.some((cell) => cell !== null), [board]);
   const isDraw = !winnerData.winner && availableMoves.length === 0;
   const isGameOver = Boolean(winnerData.winner) || isDraw;
 
@@ -233,6 +237,36 @@ export default function TicTacToe() {
     markPlayedToday();
     hasAwardedWinRef.current = true;
   }, [winnerData.winner, playerMark]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncTimeState = () => {
+      resetIfNewDay();
+      const timeState = getTimeState();
+      setIsTimeUp(timeState.enabled && timeState.remainingSeconds <= 0);
+    };
+
+    syncTimeState();
+    const intervalId = window.setInterval(syncTimeState, 1000);
+    window.addEventListener("storage", syncTimeState);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("storage", syncTimeState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isTimeUp || !hasStarted || isGameOver) {
+      return;
+    }
+
+    resetIfNewDay();
+    return startSessionTick();
+  }, [isTimeUp, hasStarted, isGameOver]);
 
   const handleCellPress = (index: number) => {
     if (isAiThinking || isGameOver || board[index] !== null) {
@@ -382,6 +416,8 @@ export default function TicTacToe() {
             })}
           </div>
         </div>
+
+        {isTimeUp ? <TimeUpOverlay backHref="/play" /> : null}
       </div>
 
       <style jsx>{`
