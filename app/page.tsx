@@ -1,9 +1,30 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAllGames } from "@/src/lib/games";
+import { getStarsTotal, getStreak } from "@/src/lib/progress";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
 
 export default function Home() {
   const previewGames = getAllGames().slice(0, 6);
+  const [stars, setStars] = useState(0);
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncProgress = () => {
+      setStars(getStarsTotal());
+      setStreak(getStreak());
+    };
+
+    syncProgress();
+    window.addEventListener("storage", syncProgress);
+    return () => window.removeEventListener("storage", syncProgress);
+  }, []);
 
   return (
     <section className="min-h-[calc(100vh-8rem)] py-8 sm:py-12">
@@ -58,6 +79,20 @@ export default function Home() {
               <span aria-hidden="true">📶</span>
               <span>Offline-friendly</span>
             </div>
+          </div>
+
+          <div className="mt-7 rounded-2xl border border-slate-100/20 bg-slate-950/75 p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-amber-200/30 bg-amber-300/10 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-100/85">Stars</p>
+                <p className="mt-1 text-3xl font-black text-amber-100">{stars}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-200/30 bg-cyan-300/10 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/85">Streak</p>
+                <p className="mt-1 text-3xl font-black text-cyan-100">{streak}</p>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-slate-300">Play daily to build a streak.</p>
           </div>
         </div>
 

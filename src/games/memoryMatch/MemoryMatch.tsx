@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { addStars, markPlayedToday } from "@/src/lib/progress";
 
 type Difficulty = "easy" | "normal" | "hard";
 type GameState = "ready" | "playing" | "won";
@@ -126,6 +127,7 @@ export default function MemoryMatch() {
   const flipBackTimerRef = useRef<number | null>(null);
   const statusTimerRef = useRef<number | null>(null);
   const confettiTimerRef = useRef<number | null>(null);
+  const hasAwardedWinRef = useRef(false);
 
   const totalPairs = CARD_VALUES[difficulty].length;
   const currentBest = bestMoves[difficulty];
@@ -198,6 +200,7 @@ export default function MemoryMatch() {
       setLockBoard(false);
       setRecentMatch(false);
       setShowConfetti(false);
+      hasAwardedWinRef.current = false;
     },
     [clearConfettiTimer, clearFlipBackTimer, clearStatusTimer],
   );
@@ -313,6 +316,12 @@ export default function MemoryMatch() {
           setShowConfetti(false);
           confettiTimerRef.current = null;
         }, 900);
+
+        if (!hasAwardedWinRef.current) {
+          addStars(1);
+          markPlayedToday();
+          hasAwardedWinRef.current = true;
+        }
 
         saveBestIfNeeded(difficultyRef.current, nextMoveCount);
       }

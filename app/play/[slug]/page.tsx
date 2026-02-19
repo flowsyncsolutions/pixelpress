@@ -1,5 +1,6 @@
 import ExitGate from "@/src/components/ExitGate";
 import GameCover from "@/src/components/GameCover";
+import PlaySoftGate from "@/src/components/PlaySoftGate";
 import { ALLOWED_IFRAME_HOSTS, getGameBySlug } from "@/src/lib/games";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
 import MemoryMatch from "@/src/games/memoryMatch/MemoryMatch";
@@ -39,6 +40,7 @@ export default async function PlayGamePage({ params }: PlayGamePageProps) {
 
   return (
     <section className="space-y-6">
+      <PlaySoftGate trackPlayVisit notNowHref="/play" />
       <ExitGate />
 
       <div className={`${THEME.surfaces.card} p-6`}>

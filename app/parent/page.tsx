@@ -6,6 +6,7 @@ const PIN_KEY = "pp_pin";
 const EXIT_PIN_KEY = "pp_exit_requires_pin";
 const SOUND_KEY = "pp_sound";
 const TIME_LIMIT_KEY = "pp_time_limit_enabled";
+const UNLOCKED_KEY = "pp_unlocked";
 
 type Message = {
   type: "success" | "error";
@@ -25,6 +26,7 @@ export default function ParentPage() {
   const [exitRequiresPin, setExitRequiresPin] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
+  const [unlockedTesting, setUnlockedTesting] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function ParentPage() {
     setExitRequiresPin(parseBoolean(window.localStorage.getItem(EXIT_PIN_KEY), true));
     setSoundEnabled(parseBoolean(window.localStorage.getItem(SOUND_KEY), true));
     setTimeLimitEnabled(parseBoolean(window.localStorage.getItem(TIME_LIMIT_KEY), false));
+    setUnlockedTesting(parseBoolean(window.localStorage.getItem(UNLOCKED_KEY), false));
   }, []);
 
   const savePin = () => {
@@ -140,6 +143,20 @@ export default function ParentPage() {
               const checked = event.target.checked;
               setTimeLimitEnabled(checked);
               updateToggle(TIME_LIMIT_KEY, checked, "Time limit");
+            }}
+            className="h-5 w-5 accent-white"
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-4 rounded-lg border border-white/10 px-4 py-3">
+          <span className="text-sm text-zinc-200">Unlocked (testing)</span>
+          <input
+            type="checkbox"
+            checked={unlockedTesting}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setUnlockedTesting(checked);
+              updateToggle(UNLOCKED_KEY, checked, "Testing unlock");
             }}
             className="h-5 w-5 accent-white"
           />

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { addStars, markPlayedToday } from "@/src/lib/progress";
 
 type Mark = "X" | "O" | null;
 type Winner = "X" | "O" | null;
@@ -141,6 +142,7 @@ export default function TicTacToe() {
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [hasCelebratedWin, setHasCelebratedWin] = useState(false);
+  const hasAwardedWinRef = useRef(false);
 
   const aiMark = useMemo(() => getOpponent(playerMark), [playerMark]);
   const winnerData = useMemo(() => calculateWinner(board), [board]);
@@ -222,6 +224,16 @@ export default function TicTacToe() {
     return () => window.clearTimeout(timer);
   }, [winnerData.winner, playerMark, hasCelebratedWin]);
 
+  useEffect(() => {
+    if (winnerData.winner !== playerMark || hasAwardedWinRef.current) {
+      return;
+    }
+
+    addStars(1);
+    markPlayedToday();
+    hasAwardedWinRef.current = true;
+  }, [winnerData.winner, playerMark]);
+
   const handleCellPress = (index: number) => {
     if (isAiThinking || isGameOver || board[index] !== null) {
       return;
@@ -245,6 +257,7 @@ export default function TicTacToe() {
     setShowConfetti(false);
     setHasCelebratedWin(false);
     setDifficulty("easy");
+    hasAwardedWinRef.current = false;
   };
 
   const handleSwapSides = () => {
@@ -253,6 +266,7 @@ export default function TicTacToe() {
     setIsAiThinking(false);
     setShowConfetti(false);
     setHasCelebratedWin(false);
+    hasAwardedWinRef.current = false;
   };
 
   return (

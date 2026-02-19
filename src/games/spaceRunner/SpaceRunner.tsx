@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { addStars, markPlayedToday } from "@/src/lib/progress";
 
 type RunnerState = "ready" | "playing" | "game_over";
 
@@ -70,6 +71,7 @@ export default function SpaceRunner() {
   const scoreFloatRef = useRef(0);
   const scoreRef = useRef(0);
   const gameStateRef = useRef<RunnerState>("ready");
+  const hasAwardedRoundRef = useRef(false);
 
   const [gameState, setGameState] = useState<RunnerState>("ready");
   const [arenaHeight, setArenaHeight] = useState(DEFAULT_ARENA_HEIGHT);
@@ -120,6 +122,7 @@ export default function SpaceRunner() {
     speedTimerRef.current = 0;
     scoreFloatRef.current = 0;
     scoreRef.current = 0;
+    hasAwardedRoundRef.current = false;
 
     setPlayerY(groundY);
     setPlayerTilt(0);
@@ -299,6 +302,16 @@ export default function SpaceRunner() {
     const timer = window.setTimeout(() => setScorePopping(false), 150);
     return () => window.clearTimeout(timer);
   }, [score, gameState]);
+
+  useEffect(() => {
+    if (gameState !== "game_over" || score < 25 || hasAwardedRoundRef.current) {
+      return;
+    }
+
+    addStars(1);
+    markPlayedToday();
+    hasAwardedRoundRef.current = true;
+  }, [gameState, score]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ExitGate from "@/src/components/ExitGate";
 import GameCover from "@/src/components/GameCover";
+import PlaySoftGate from "@/src/components/PlaySoftGate";
 import {
   CATEGORIES,
   getAllGames,
@@ -11,6 +12,7 @@ import {
   getGamesByCategory,
   type GameCategory,
 } from "@/src/lib/games";
+import { getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progress";
 import { ACCENT_STYLES, THEME, type AccentTone } from "@/src/lib/theme";
 
 const CATEGORY_META: Record<
@@ -24,23 +26,14 @@ const CATEGORY_META: Record<
   puzzles: { label: "Puzzles", icon: "🧩", accent: "cyan" },
 };
 
-const SHELF_CHIPS = [
-  { icon: "🌈", label: "Creative Games" },
-  { icon: "🧮", label: "Applied Math" },
-  { icon: "👨‍👩‍👧‍👦", label: "Family Picks" },
-  { icon: "🎯", label: "Daily Games" },
-  { icon: "🏫", label: "Classroom" },
-  { icon: "🛡️", label: "Parent Safe" },
-];
-
 export default function PlayPage() {
   const [selectedCategory, setSelectedCategory] = useState<GameCategory | "all">("all");
+  const [stars, setStars] = useState(0);
+  const [streak, setStreak] = useState(0);
+
   const counts = getCategoryCounts();
-  const allGames = getAllGames();
-  const dailyPicks = allGames.filter((game) => game.featured).slice(0, 3);
-  const newThisWeek = allGames.slice(0, 5);
-  const whatWerePlaying = allGames.filter((game) => game.status === "live").slice(0, 5);
-  const heroCards = allGames.filter((game) => game.featured).slice(0, 2);
+  const allGames = useMemo(() => getAllGames(), []);
+  const dailyPicks = useMemo(() => getDailySeededItems(allGames, 3), [allGames]);
 
   const games = useMemo(() => {
     if (selectedCategory === "all") {
@@ -49,135 +42,85 @@ export default function PlayPage() {
     return getGamesByCategory(selectedCategory);
   }, [allGames, selectedCategory]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncProgress = () => {
+      setStars(getStarsTotal());
+      setStreak(getStreak());
+    };
+
+    syncProgress();
+    window.addEventListener("storage", syncProgress);
+    return () => window.removeEventListener("storage", syncProgress);
+  }, []);
+
   return (
     <section className="space-y-5 pb-5">
+      <PlaySoftGate notNowHref="/play" />
       <ExitGate />
 
       <header className={`${THEME.surfaces.card} p-4`}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
-              Pocket Arcade
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Pocket Arcade</p>
             <h1 className="text-2xl font-extrabold text-white sm:text-3xl">Game Shelf</h1>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200/15 bg-slate-950/80 px-4 py-2 text-sm text-slate-200">
-            <span aria-hidden="true">🔥</span>
-            <span>Streak: 0 days</span>
-          </div>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {SHELF_CHIPS.map((chip) => (
-            <span
-              key={chip.label}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200/15 bg-slate-950/80 px-3 py-2 text-sm text-slate-100"
-            >
-              <span aria-hidden="true">{chip.icon}</span>
-              {chip.label}
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-2 rounded-xl border border-amber-200/30 bg-amber-300/10 px-3 py-2 text-sm font-semibold text-amber-100">
+              ⭐ Stars: {stars}
             </span>
-          ))}
+            <span className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/30 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100">
+              🔥 Streak: {streak}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1.05fr_1.05fr_1.25fr]">
-        <section className={`${THEME.surfaces.card} p-4`}>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-100">New This Week</h2>
-            <span className="text-sm font-semibold text-violet-200">See all</span>
-          </div>
-          <div className="space-y-3">
-            {newThisWeek.map((game) => (
-              <Link
-                key={game.slug}
-                href={`/play/${game.slug}`}
-                className="flex items-center gap-3 rounded-xl border border-slate-200/10 bg-slate-900/80 p-2 transition hover:bg-slate-800/85"
-              >
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200/10">
-                  <GameCover
-                    title={game.title}
-                    icon={game.icon}
-                    accent={game.accent}
-                    cover={game.cover}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-slate-100">{game.title}</p>
-                  <p className="line-clamp-2 text-sm text-slate-300">{game.description}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className={`${THEME.surfaces.card} p-4`}>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-100">What We&apos;re Playing</h2>
-            <span className={`${THEME.surfaces.pill} text-slate-100`}>Daily Picks</span>
-          </div>
-          <div className="space-y-3">
-            {whatWerePlaying.map((game) => (
-              <Link
-                key={game.slug}
-                href={`/play/${game.slug}`}
-                className="flex items-center gap-3 rounded-xl border border-slate-200/10 bg-slate-900/80 p-2 transition hover:bg-slate-800/85"
-              >
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200/10">
-                  <GameCover
-                    title={game.title}
-                    icon={game.icon}
-                    accent={game.accent}
-                    cover={game.cover}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-slate-100">{game.title}</p>
-                  <p className="text-sm text-slate-300">
-                    {game.status === "live" ? "Live now" : "Coming soon"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <div className="grid gap-4">
-          <section className={`${THEME.surfaces.card} p-3`}>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              {heroCards.map((game) => (
-                <Link
-                  key={game.slug}
-                  href={`/play/${game.slug}`}
-                  className="rounded-xl border border-slate-200/10 bg-slate-900/85 transition hover:-translate-y-0.5"
-                >
-                  <div className="relative aspect-[16/9] overflow-hidden rounded-t-xl">
-                    <GameCover
-                      title={game.title}
-                      icon={game.icon}
-                      accent={game.accent}
-                      cover={game.cover}
-                    />
-                  </div>
-                  <div className="p-3">
-                    <p className="text-xl font-extrabold text-white">{game.title}</p>
-                    <p className="text-sm text-slate-300">{game.description}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section className={`${THEME.surfaces.card} p-4`}>
-            <h2 className="mb-2 text-lg font-bold text-slate-100">Continue Playing</h2>
-            <div className="rounded-xl border border-dashed border-slate-300/25 bg-slate-900/70 p-4">
-              <p className="text-sm text-slate-300">No recent sessions yet.</p>
-              <p className="mt-1 text-xs text-slate-400">
-                Once kids play a game, it will appear here for quick return.
-              </p>
-            </div>
-          </section>
+      <section className={`${THEME.surfaces.card} p-4`}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-black text-slate-100">Daily Picks</h2>
+          <span className={`${THEME.surfaces.pill} text-slate-200`}>3 picked for today</span>
         </div>
-      </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {dailyPicks.map((game) => {
+            const accent = ACCENT_STYLES[game.accent];
+            return (
+              <Link
+                key={game.slug}
+                href={`/play/${game.slug}`}
+                className={`group overflow-hidden rounded-2xl border border-slate-100/12 bg-slate-900/88 shadow-[0_8px_24px_rgba(2,6,23,0.35)] transition hover:-translate-y-0.5 ${accent.tileGlow}`}
+              >
+                <div className={`h-1.5 ${accent.ribbon}`} />
+                <div className="relative aspect-[16/9]">
+                  <GameCover
+                    title={game.title}
+                    icon={game.icon}
+                    accent={game.accent}
+                    cover={game.cover}
+                  />
+                </div>
+
+                <div className="p-4">
+                  <p className="text-lg font-semibold text-white">{game.title}</p>
+                  <p className="text-sm text-slate-300">{game.description}</p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className={`${THEME.surfaces.pill} text-slate-100`}>
+                      {CATEGORY_META[game.category].icon} {CATEGORY_META[game.category].label}
+                    </span>
+                    <span className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${accent.button}`}>
+                      Play
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       <div className={`${THEME.surfaces.card} p-2`}>
         <div className="flex gap-2 overflow-x-auto">
@@ -284,30 +227,6 @@ export default function PlayPage() {
           );
         })}
       </div>
-
-      <section className={`${THEME.surfaces.card} p-4`}>
-        <h2 className="mb-3 text-2xl font-black text-slate-100">Top Shelf</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {allGames.slice(0, 4).map((game, index) => (
-            <Link key={game.slug} href={`/play/${game.slug}`} className="overflow-hidden rounded-xl border border-slate-200/10 bg-slate-900/85 transition hover:-translate-y-0.5">
-              <div className="relative aspect-[16/9]">
-                <GameCover
-                  title={game.title}
-                  icon={game.icon}
-                  accent={game.accent}
-                  cover={game.cover}
-                />
-              </div>
-              <div className="p-3">
-                <div className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white">
-                  {index + 1}
-                </div>
-                <p className="text-lg font-bold text-white">{game.title}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
     </section>
   );
 }
