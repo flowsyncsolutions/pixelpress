@@ -6,10 +6,13 @@ import { getAllGames } from "@/src/lib/games";
 import { getStarsTotal, getStreak } from "@/src/lib/progress";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
 
+const ONBOARDED_KEY = "pp_onboarded";
+
 export default function Home() {
   const previewGames = getAllGames().slice(0, 6);
   const [stars, setStars] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -22,12 +25,48 @@ export default function Home() {
     };
 
     syncProgress();
+    const onboarded = window.localStorage.getItem(ONBOARDED_KEY) === "true";
+    setShowOnboardingPrompt(!onboarded);
     window.addEventListener("storage", syncProgress);
     return () => window.removeEventListener("storage", syncProgress);
   }, []);
 
+  const completeOnboardingPrompt = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ONBOARDED_KEY, "true");
+    }
+    setShowOnboardingPrompt(false);
+  };
+
   return (
     <section className="min-h-[calc(100vh-8rem)] py-8 sm:py-12">
+      {showOnboardingPrompt ? (
+        <div className={`${THEME.surfaces.card} mb-5 border-violet-200/20 bg-violet-500/10 p-4`}>
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-violet-100">New here? Set up PixelPress in 60 seconds.</p>
+              <p className="text-xs text-slate-300">Install tips, timer setup, and parent controls in one quick flow.</p>
+            </div>
+            <div className="flex w-full gap-2 sm:w-auto">
+              <Link
+                href="/welcome"
+                onClick={completeOnboardingPrompt}
+                className="inline-flex flex-1 items-center justify-center rounded-lg bg-violet-400 px-4 py-2.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-300 sm:flex-none"
+              >
+                Setup
+              </Link>
+              <button
+                type="button"
+                onClick={completeOnboardingPrompt}
+                className="inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200/25 bg-slate-900/70 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 sm:flex-none"
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <div className={`${THEME.surfaces.card} ${THEME.gradients.hero} p-6 sm:p-8`}>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-100/20 bg-slate-900/80 px-3 py-1.5 text-sm font-semibold text-slate-100">
