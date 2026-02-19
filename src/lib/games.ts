@@ -16,7 +16,7 @@ export type Game = {
   category: GameCategory;
   status: "live" | "coming_soon";
   embedType: "internal" | "iframe";
-  internalEngine?: "tictactoe" | "spaceRunner";
+  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch";
   embedSrc?: string;
 };
 
@@ -107,13 +107,14 @@ export const GAMES: Game[] = [
     title: "Memory Match",
     icon: "🧠",
     cover: "/covers/memory-match.png",
-    accent: "emerald",
+    accent: "violet",
     featured: true,
     description: "Flip cards and find all pairs with fewer moves.",
-    tags: ["classics", "memory"],
-    category: "classics",
+    tags: ["kids", "memory"],
+    category: "kids",
     status: "live",
     embedType: "internal",
+    internalEngine: "memoryMatch",
   },
   {
     slug: "snake",
