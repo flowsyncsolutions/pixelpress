@@ -7,6 +7,8 @@ import ConfettiBurst from "@/src/components/ConfettiBurst";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { addStars, markPlayedToday } from "@/src/lib/progress";
+import { safeGet, safeSet } from "@/src/lib/storageGuard";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 
 type RoundState = "idle" | "waiting" | "ready" | "result";
@@ -15,6 +17,9 @@ type ResultType = "success" | "tooSoon" | null;
 const BEST_KEY = "pp_reaction_best_ms";
 const MIN_WAIT_MS = 1200;
 const MAX_WAIT_MS = 3200;
+const STAR_TARGET_MS = 350;
+const SHAKE_MS = 380;
+const CONFETTI_MS = 900;
 
 function parseBest(raw: string | null): number | null {
   if (!raw) {
@@ -25,6 +30,10 @@ function parseBest(raw: string | null): number | null {
     return null;
   }
   return Math.floor(parsed);
+}
+
+function randomWaitMs(): number {
+  return MIN_WAIT_MS + Math.floor(Math.random() * (MAX_WAIT_MS - MIN_WAIT_MS + 1));
 }
 
 type ReactionTapProps = {
@@ -39,66 +48,24 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
   const [reactionMs, setReactionMs] = useState<number | null>(null);
   const [bestMs, setBestMs] = useState<number | null>(null);
   const [newBest, setNewBest] = useState(false);
+  const [earnedStar, setEarnedStar] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [shakeCircle, setShakeCircle] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
 
-  const waitTimerRef = useRef<number | null>(null);
+  const roundStateRef = useRef<RoundState>("idle");
+  const bestMsRef = useRef<number | null>(null);
   const readyAtRef = useRef<number | null>(null);
+  const waitTimerRef = useRef<number | null>(null);
   const shakeTimerRef = useRef<number | null>(null);
   const confettiTimerRef = useRef<number | null>(null);
+  const hasResolvedRoundRef = useRef(false);
+  const hasAwardedRoundRef = useRef(false);
 
-  const statusText =
-    roundState === "waiting"
-      ? "Wait"
-      : roundState === "ready"
-        ? "Tap!"
-        : roundState === "result"
-          ? "Result"
-          : "Tap to start";
-
-  const statusTone =
-    roundState === "ready"
-      ? arcade.badgeLive
-      : resultType === "tooSoon"
-        ? arcade.badgeSoon
-        : resultType === "success"
-          ? arcade.badgeLive
-          : "";
-
-  const instruction = useMemo(() => {
-    if (roundState === "waiting") {
-      return "Wait for green...";
-    }
-    if (roundState === "ready") {
-      return "Tap now!";
-    }
-    if (roundState === "result") {
-      if (resultType === "tooSoon") {
-        return "Too soon! Wait for green.";
-      }
-      if (reactionMs !== null) {
-        return `Reaction time: ${reactionMs}ms`;
-      }
-    }
-    return "Tap start, then wait for green.";
-  }, [reactionMs, resultType, roundState]);
-
-  const circleTone = useMemo(() => {
-    if (roundState === "waiting") {
-      return "bg-rose-500/75 border-rose-200/60 text-rose-50";
-    }
-    if (roundState === "ready") {
-      return "bg-emerald-400/85 border-emerald-100/75 text-emerald-950";
-    }
-    if (resultType === "tooSoon") {
-      return "bg-amber-400/80 border-amber-100/75 text-amber-950";
-    }
-    if (resultType === "success") {
-      return "bg-violet-400/85 border-violet-100/75 text-violet-950";
-    }
-    return "bg-slate-800 border-slate-300/35 text-slate-100";
-  }, [resultType, roundState]);
+  const transitionRound = useCallback((nextState: RoundState) => {
+    roundStateRef.current = nextState;
+    setRoundState(nextState);
+  }, []);
 
   const clearWaitTimer = useCallback(() => {
     if (waitTimerRef.current !== null) {
@@ -121,73 +88,89 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
     }
   }, []);
 
-  const startRound = useCallback(() => {
-    clearWaitTimer();
+  const triggerShake = useCallback(() => {
+    setShakeCircle(true);
     clearShakeTimer();
-
-    setRoundState("waiting");
-    setResultType(null);
-    setReactionMs(null);
-    setNewBest(false);
-    setShakeCircle(false);
-    readyAtRef.current = null;
-
-    const waitMs = MIN_WAIT_MS + Math.floor(Math.random() * (MAX_WAIT_MS - MIN_WAIT_MS + 1));
-    waitTimerRef.current = window.setTimeout(() => {
-      readyAtRef.current = Date.now();
-      setRoundState("ready");
-      waitTimerRef.current = null;
-    }, waitMs);
-  }, [clearShakeTimer, clearWaitTimer]);
+    shakeTimerRef.current = window.setTimeout(() => {
+      setShakeCircle(false);
+      shakeTimerRef.current = null;
+    }, SHAKE_MS);
+  }, [clearShakeTimer]);
 
   const saveBest = useCallback((nextBest: number) => {
+    bestMsRef.current = nextBest;
     setBestMs(nextBest);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(BEST_KEY, String(nextBest));
-    }
+    safeSet(BEST_KEY, String(nextBest));
   }, []);
 
-  const handleTap = () => {
+  const resetRoundTransientState = useCallback(() => {
+    clearWaitTimer();
+    clearShakeTimer();
+    readyAtRef.current = null;
+    hasResolvedRoundRef.current = false;
+    hasAwardedRoundRef.current = false;
+    setResultType(null);
+    setReactionMs(null);
+    setShakeCircle(false);
+    setNewBest(false);
+    setEarnedStar(false);
+  }, [clearShakeTimer, clearWaitTimer]);
+
+  const startRound = useCallback(() => {
     if (isTimeUp) {
       return;
     }
 
-    if (roundState === "idle") {
-      startRound();
+    resetRoundTransientState();
+    clearConfettiTimer();
+    setShowConfetti(false);
+    transitionRound("waiting");
+
+    waitTimerRef.current = window.setTimeout(() => {
+      waitTimerRef.current = null;
+      readyAtRef.current = Date.now();
+      transitionRound("ready");
+    }, randomWaitMs());
+  }, [clearConfettiTimer, isTimeUp, resetRoundTransientState, transitionRound]);
+
+  const resolveTooSoon = useCallback(() => {
+    if (hasResolvedRoundRef.current) {
       return;
     }
 
-    if (roundState === "waiting") {
-      clearWaitTimer();
-      setRoundState("result");
-      setResultType("tooSoon");
-      setReactionMs(null);
-      setNewBest(false);
-      setShakeCircle(true);
-      clearShakeTimer();
-      shakeTimerRef.current = window.setTimeout(() => {
-        setShakeCircle(false);
-        shakeTimerRef.current = null;
-      }, 380);
-      return;
-    }
+    hasResolvedRoundRef.current = true;
+    clearWaitTimer();
+    readyAtRef.current = null;
+    transitionRound("result");
+    setResultType("tooSoon");
+    setReactionMs(null);
+    setNewBest(false);
+    setEarnedStar(false);
+    triggerShake();
+  }, [clearWaitTimer, transitionRound, triggerShake]);
 
-    if (roundState !== "ready") {
+  const resolveSuccess = useCallback(() => {
+    if (hasResolvedRoundRef.current) {
       return;
     }
 
     const startedAt = readyAtRef.current;
-    if (!startedAt) {
+    if (startedAt === null) {
       return;
     }
 
+    hasResolvedRoundRef.current = true;
+    clearWaitTimer();
+    readyAtRef.current = null;
+
     const measuredMs = Math.max(1, Date.now() - startedAt);
-    setReactionMs(measuredMs);
-    setRoundState("result");
+    transitionRound("result");
     setResultType("success");
+    setReactionMs(measuredMs);
     onComplete?.({ best: measuredMs });
 
-    const isNewBest = bestMs === null || measuredMs < bestMs;
+    const previousBest = bestMsRef.current;
+    const isNewBest = previousBest === null || measuredMs < previousBest;
     setNewBest(isNewBest);
     if (isNewBest) {
       saveBest(measuredMs);
@@ -196,9 +179,36 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
       confettiTimerRef.current = window.setTimeout(() => {
         setShowConfetti(false);
         confettiTimerRef.current = null;
-      }, 900);
+      }, CONFETTI_MS);
     }
-  };
+
+    if (measuredMs < STAR_TARGET_MS && !hasAwardedRoundRef.current) {
+      addStars(1);
+      markPlayedToday();
+      hasAwardedRoundRef.current = true;
+      setEarnedStar(true);
+    }
+  }, [clearConfettiTimer, clearWaitTimer, onComplete, saveBest, transitionRound]);
+
+  const handleTap = useCallback(() => {
+    if (isTimeUp) {
+      return;
+    }
+
+    const state = roundStateRef.current;
+    if (state === "idle") {
+      startRound();
+      return;
+    }
+    if (state === "waiting") {
+      resolveTooSoon();
+      return;
+    }
+    if (state === "ready") {
+      resolveSuccess();
+      return;
+    }
+  }, [isTimeUp, resolveSuccess, resolveTooSoon, startRound]);
 
   const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
     if (roundState === "waiting" || roundState === "ready") {
@@ -206,11 +216,93 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
     }
   };
 
+  const statusText = useMemo(() => {
+    if (roundState === "waiting") {
+      return "WAIT";
+    }
+    if (roundState === "ready") {
+      return "TAP NOW";
+    }
+    if (roundState === "result" && resultType === "tooSoon") {
+      return "Too Soon!";
+    }
+    if (roundState === "result" && newBest) {
+      return "New Best!";
+    }
+    if (roundState === "result") {
+      return "Result";
+    }
+    return "Wait → Tap";
+  }, [newBest, resultType, roundState]);
+
+  const statusTone =
+    roundState === "ready"
+      ? arcade.badgeLive
+      : resultType === "tooSoon"
+        ? arcade.badgeSoon
+        : newBest
+          ? arcade.badgeLive
+          : "";
+
+  const instruction = useMemo(() => {
+    if (roundState === "waiting") {
+      return "Wait for green...";
+    }
+    if (roundState === "ready") {
+      return "TAP!";
+    }
+    if (roundState === "result") {
+      if (resultType === "tooSoon") {
+        return "Too soon! Tap Play Again.";
+      }
+      if (reactionMs !== null) {
+        return `Reaction time: ${reactionMs}ms`;
+      }
+    }
+    return "Wait for green, then tap as fast as you can.";
+  }, [reactionMs, resultType, roundState]);
+
+  const circleTone = useMemo(() => {
+    if (roundState === "waiting") {
+      return "bg-rose-500/75 border-rose-200/60 text-rose-50";
+    }
+    if (roundState === "ready") {
+      return "bg-emerald-400/85 border-emerald-100/75 text-emerald-950";
+    }
+    if (resultType === "tooSoon") {
+      return "bg-amber-400/80 border-amber-100/75 text-amber-950";
+    }
+    if (resultType === "success") {
+      return "bg-violet-400/85 border-violet-100/75 text-violet-950";
+    }
+    return "bg-slate-800 border-slate-300/35 text-slate-100";
+  }, [resultType, roundState]);
+
+  useEffect(() => {
+    const raw = safeGet(BEST_KEY, "");
+    const parsed = parseBest(raw);
+    if (raw && parsed === null) {
+      safeSet(BEST_KEY, "");
+    }
+    bestMsRef.current = parsed;
+    setBestMs(parsed);
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-    setBestMs(parseBest(window.localStorage.getItem(BEST_KEY)));
+
+    const syncBestFromStorage = () => {
+      const parsed = parseBest(safeGet(BEST_KEY, ""));
+      bestMsRef.current = parsed;
+      setBestMs(parsed);
+    };
+
+    window.addEventListener("storage", syncBestFromStorage);
+    return () => {
+      window.removeEventListener("storage", syncBestFromStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -233,6 +325,17 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
       window.removeEventListener("storage", syncTimeState);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isTimeUp) {
+      return;
+    }
+
+    resetRoundTransientState();
+    clearConfettiTimer();
+    setShowConfetti(false);
+    transitionRound("idle");
+  }, [clearConfettiTimer, isTimeUp, resetRoundTransientState, transitionRound]);
 
   useEffect(() => {
     if (isTimeUp || (roundState !== "waiting" && roundState !== "ready")) {
@@ -258,12 +361,15 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className={`text-xl font-black ${arcade.glowText}`}>Reaction Tap</h2>
-              <p className={`text-sm ${arcade.subtleText}`}>Wait for green, then tap as fast as you can.</p>
+              <p className={`text-sm ${arcade.subtleText}`}>WAIT for green, then TAP fast.</p>
             </div>
             <div className="flex flex-wrap gap-2 md:justify-end">
               <span className={`${arcade.chip} ${statusTone}`}>{statusText}</span>
               <span className={arcade.chip}>
                 Best: <strong className="font-black text-cyan-100">{bestMs ? `${bestMs}ms` : "--"}</strong>
+              </span>
+              <span className={arcade.chip}>
+                Earn a star under <strong className="font-black text-amber-200">{STAR_TARGET_MS}ms</strong>
               </span>
             </div>
           </div>
@@ -325,7 +431,16 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
               stats={[
                 { label: "Reaction", value: reactionMs !== null ? `${reactionMs}ms` : "--" },
                 { label: "Best", value: bestMs !== null ? `${bestMs}ms` : "--" },
-                { label: "Status", value: resultType === "tooSoon" ? "Too soon" : "Valid tap" },
+                { label: "New Best", value: newBest ? "Yes" : "No" },
+                {
+                  label: "Star",
+                  value:
+                    resultType === "success"
+                      ? earnedStar
+                        ? `Earned (<${STAR_TARGET_MS}ms)`
+                        : `Target ${STAR_TARGET_MS}ms`
+                      : "--",
+                },
               ]}
               onPrimary={startRound}
               onSecondary={() => router.push("/play")}
@@ -338,11 +453,11 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
 
       <style jsx>{`
         .pp-wait-pulse {
-          animation: pp-wait-pulse 1.2s ease-in-out infinite;
+          animation: pp-wait-pulse 1.35s ease-in-out infinite;
         }
 
         .pp-ready-flash {
-          animation: pp-ready-flash 0.45s ease-out infinite alternate;
+          animation: pp-ready-flash 0.3s ease-out infinite alternate;
         }
 
         .pp-shake {
@@ -355,7 +470,7 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
             box-shadow: 0 18px 35px rgba(2, 6, 23, 0.5);
           }
           50% {
-            transform: scale(1.03);
+            transform: scale(1.035);
             box-shadow: 0 24px 45px rgba(244, 63, 94, 0.24);
           }
           100% {
@@ -372,8 +487,8 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
           }
           100% {
             box-shadow:
-              0 0 0 14px rgba(74, 222, 128, 0.04),
-              0 22px 40px rgba(16, 185, 129, 0.35);
+              0 0 0 16px rgba(74, 222, 128, 0.05),
+              0 24px 44px rgba(16, 185, 129, 0.34);
           }
         }
 
