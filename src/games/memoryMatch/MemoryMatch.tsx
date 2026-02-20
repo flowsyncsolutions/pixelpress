@@ -7,12 +7,15 @@ import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
+import { safeGet, safeSet } from "@/src/lib/storageGuard";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 import { getUnlockedFeatures } from "@/src/lib/unlocks";
 import { getMemoryMatchTheme } from "@/src/lib/variants";
 
 type Difficulty = "easy" | "normal" | "hard";
 type GameState = "ready" | "playing" | "won";
+type FeedbackState = "match" | "mismatch" | null;
+type BestRecord = Record<Difficulty, number | null>;
 
 type Card = {
   id: string;
@@ -46,11 +49,27 @@ const DEFAULT_CARD_VALUES: Record<Difficulty, string[]> = {
   ],
 };
 
-const BEST_KEYS: Record<Difficulty, string> = {
+const BEST_MOVES_KEYS: Record<Difficulty, string> = {
+  easy: "pp_memory_best_easy_moves",
+  normal: "pp_memory_best_normal_moves",
+  hard: "pp_memory_best_hard_moves",
+};
+
+const BEST_TIME_KEYS: Record<Difficulty, string> = {
+  easy: "pp_memory_best_easy_time",
+  normal: "pp_memory_best_normal_time",
+  hard: "pp_memory_best_hard_time",
+};
+
+const LEGACY_BEST_KEYS: Record<Difficulty, string> = {
   easy: "pp_memory_best_easy",
   normal: "pp_memory_best_normal",
   hard: "pp_memory_best_hard",
 };
+
+const MISMATCH_FLIP_BACK_MS = 650;
+const FEEDBACK_DURATION_MS = 620;
+const ELAPSED_TICK_MS = 100;
 
 function fisherYatesShuffle<T>(items: T[]): T[] {
   const shuffled = [...items];
@@ -63,17 +82,33 @@ function fisherYatesShuffle<T>(items: T[]): T[] {
   return shuffled;
 }
 
+function pickUnique(values: string[], count: number, fallback: string[]): string[] {
+  const unique = Array.from(new Set(values));
+  if (unique.length >= count) {
+    return unique.slice(0, count);
+  }
+
+  for (const candidate of fallback) {
+    if (!unique.includes(candidate)) {
+      unique.push(candidate);
+    }
+    if (unique.length >= count) {
+      break;
+    }
+  }
+
+  return unique.slice(0, count);
+}
+
 function getCardValuesForTheme(themeId?: string): Record<Difficulty, string[]> {
   const theme = getMemoryMatchTheme(themeId);
   if (!theme) {
     return DEFAULT_CARD_VALUES;
   }
 
-  const merged = Array.from(new Set([...theme.emojis, ...DEFAULT_CARD_VALUES.hard]));
-  const hard = merged.slice(0, DEFAULT_CARD_VALUES.hard.length);
+  const hard = pickUnique(theme.emojis, DEFAULT_CARD_VALUES.hard.length, DEFAULT_CARD_VALUES.hard);
   const normal = hard.slice(0, DEFAULT_CARD_VALUES.normal.length);
   const easy = hard.slice(0, DEFAULT_CARD_VALUES.easy.length);
-
   return { easy, normal, hard };
 }
 
@@ -96,15 +131,45 @@ function buildDeck(difficulty: Difficulty, cardValues: Record<Difficulty, string
   return fisherYatesShuffle(cards);
 }
 
-function parseStoredBest(raw: string | null): number | null {
+function parseStoredPositiveInt(raw: string | null): number | null {
   if (!raw) {
     return null;
   }
+
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return null;
   }
+
   return Math.floor(parsed);
+}
+
+function formatDuration(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function readBestMoves(mode: Difficulty): number | null {
+  const current = parseStoredPositiveInt(safeGet(BEST_MOVES_KEYS[mode], ""));
+  if (current !== null) {
+    return current;
+  }
+
+  const legacy = parseStoredPositiveInt(safeGet(LEGACY_BEST_KEYS[mode], ""));
+  if (legacy !== null) {
+    safeSet(BEST_MOVES_KEYS[mode], String(legacy));
+  }
+  return legacy;
+}
+
+function readBestTime(mode: Difficulty): number | null {
+  return parseStoredPositiveInt(safeGet(BEST_TIME_KEYS[mode], ""));
+}
+
+function createEmptyBestRecord(): BestRecord {
+  return { easy: null, normal: null, hard: null };
 }
 
 type MemoryMatchProps = {
@@ -124,30 +189,39 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
   const [flippedIndexes, setFlippedIndexes] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
   const [matches, setMatches] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [gameState, setGameState] = useState<GameState>("ready");
+  const [feedbackState, setFeedbackState] = useState<FeedbackState>(null);
   const [lockBoard, setLockBoard] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [memoryHardUnlocked, setMemoryHardUnlocked] = useState(false);
-  const [bestMoves, setBestMoves] = useState<Record<Difficulty, number | null>>({
-    easy: null,
-    normal: null,
-    hard: null,
-  });
+  const [bestMoves, setBestMoves] = useState<BestRecord>(createEmptyBestRecord);
+  const [bestTimes, setBestTimes] = useState<BestRecord>(createEmptyBestRecord);
 
   const cardsRef = useRef<Card[]>(cards);
   const flippedIndexesRef = useRef<number[]>(flippedIndexes);
   const movesRef = useRef(moves);
   const matchesRef = useRef(matches);
+  const elapsedMsRef = useRef(elapsedMs);
   const gameStateRef = useRef<GameState>(gameState);
   const lockBoardRef = useRef(lockBoard);
   const difficultyRef = useRef<Difficulty>(difficulty);
+  const bestMovesRef = useRef<BestRecord>(createEmptyBestRecord());
+  const bestTimesRef = useRef<BestRecord>(createEmptyBestRecord());
+
   const flipBackTimerRef = useRef<number | null>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
   const confettiTimerRef = useRef<number | null>(null);
+  const elapsedTimerRef = useRef<number | null>(null);
+  const startedAtRef = useRef<number | null>(null);
+  const tapFrameGuardRef = useRef(false);
   const hasAwardedWinRef = useRef(false);
+  const hasReportedCompleteRef = useRef(false);
 
   const totalPairs = cardValues[difficulty].length;
-  const currentBest = bestMoves[difficulty];
+  const currentBestMoves = bestMoves[difficulty];
+  const currentBestTime = bestTimes[difficulty];
   const gridClass =
     difficulty === "easy"
       ? "grid-cols-3 gap-2 sm:gap-3"
@@ -165,18 +239,39 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
     if (gameState === "won") {
       return "You win!";
     }
-    if (gameState === "ready") {
-      return "Tap to start";
+    if (feedbackState === "match") {
+      return "Nice match!";
     }
-    return "You got this";
-  }, [gameState]);
+    if (feedbackState === "mismatch") {
+      return "Try again!";
+    }
+    if (gameState === "ready") {
+      return "Find the pairs!";
+    }
+    return "Keep matching!";
+  }, [feedbackState, gameState]);
 
-  const statusClass = gameState === "won" ? arcade.badgeLive : "";
+  const statusClass = useMemo(() => {
+    if (gameState === "won" || feedbackState === "match") {
+      return arcade.badgeLive;
+    }
+    if (feedbackState === "mismatch") {
+      return "border-amber-200/45 bg-amber-400/15 text-amber-100";
+    }
+    return "";
+  }, [feedbackState, gameState]);
 
   const clearFlipBackTimer = useCallback(() => {
     if (flipBackTimerRef.current !== null) {
       window.clearTimeout(flipBackTimerRef.current);
       flipBackTimerRef.current = null;
+    }
+  }, []);
+
+  const clearFeedbackTimer = useCallback(() => {
+    if (feedbackTimerRef.current !== null) {
+      window.clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = null;
     }
   }, []);
 
@@ -187,16 +282,113 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
     }
   }, []);
 
+  const clearElapsedTimer = useCallback(() => {
+    if (elapsedTimerRef.current !== null) {
+      window.clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+  }, []);
+
+  const stopElapsedTimer = useCallback(() => {
+    clearElapsedTimer();
+    startedAtRef.current = null;
+  }, [clearElapsedTimer]);
+
+  const getElapsedNow = useCallback(() => {
+    if (startedAtRef.current === null) {
+      return elapsedMsRef.current;
+    }
+    return Math.max(0, Date.now() - startedAtRef.current);
+  }, []);
+
+  const startElapsedTimer = useCallback(() => {
+    if (elapsedTimerRef.current !== null) {
+      return;
+    }
+
+    startedAtRef.current = Date.now() - elapsedMsRef.current;
+    elapsedTimerRef.current = window.setInterval(() => {
+      if (startedAtRef.current === null) {
+        return;
+      }
+      const nextElapsed = Math.max(0, Date.now() - startedAtRef.current);
+      elapsedMsRef.current = nextElapsed;
+      setElapsedMs(nextElapsed);
+    }, ELAPSED_TICK_MS);
+  }, []);
+
+  const showFeedback = useCallback(
+    (nextFeedback: FeedbackState) => {
+      clearFeedbackTimer();
+      setFeedbackState(nextFeedback);
+      if (!nextFeedback) {
+        return;
+      }
+
+      feedbackTimerRef.current = window.setTimeout(() => {
+        setFeedbackState(null);
+        feedbackTimerRef.current = null;
+      }, FEEDBACK_DURATION_MS);
+    },
+    [clearFeedbackTimer],
+  );
+
+  const loadBestRecords = useCallback(() => {
+    const nextBestMoves: BestRecord = {
+      easy: readBestMoves("easy"),
+      normal: readBestMoves("normal"),
+      hard: readBestMoves("hard"),
+    };
+    const nextBestTimes: BestRecord = {
+      easy: readBestTime("easy"),
+      normal: readBestTime("normal"),
+      hard: readBestTime("hard"),
+    };
+
+    bestMovesRef.current = nextBestMoves;
+    bestTimesRef.current = nextBestTimes;
+    setBestMoves(nextBestMoves);
+    setBestTimes(nextBestTimes);
+  }, []);
+
+  const saveBestIfNeeded = useCallback((mode: Difficulty, finalMoves: number, finalElapsedMs: number) => {
+    const currentMoves = bestMovesRef.current[mode];
+    const currentTime = bestTimesRef.current[mode];
+    const nextElapsed = Math.max(1, Math.floor(finalElapsedMs));
+
+    if (currentMoves === null || finalMoves < currentMoves) {
+      const nextMoves = { ...bestMovesRef.current, [mode]: finalMoves };
+      bestMovesRef.current = nextMoves;
+      setBestMoves(nextMoves);
+      safeSet(BEST_MOVES_KEYS[mode], String(finalMoves));
+    }
+
+    if (currentTime === null || nextElapsed < currentTime) {
+      const nextTimes = { ...bestTimesRef.current, [mode]: nextElapsed };
+      bestTimesRef.current = nextTimes;
+      setBestTimes(nextTimes);
+      safeSet(BEST_TIME_KEYS[mode], String(nextElapsed));
+    }
+  }, []);
+
+  const syncUnlockState = useCallback(() => {
+    const unlocked = getUnlockedFeatures();
+    setMemoryHardUnlocked(unlocked.memoryHardUnlocked);
+  }, []);
+
   const resetBoard = useCallback(
     (nextDifficulty: Difficulty) => {
       clearFlipBackTimer();
+      clearFeedbackTimer();
       clearConfettiTimer();
+      stopElapsedTimer();
 
       const nextDeck = buildDeck(nextDifficulty, cardValues);
       cardsRef.current = nextDeck;
       flippedIndexesRef.current = [];
       movesRef.current = 0;
       matchesRef.current = 0;
+      elapsedMsRef.current = 0;
       gameStateRef.current = "ready";
       lockBoardRef.current = false;
 
@@ -204,39 +396,16 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
       setFlippedIndexes([]);
       setMoves(0);
       setMatches(0);
+      setElapsedMs(0);
       setGameState("ready");
+      setFeedbackState(null);
       setLockBoard(false);
       setShowConfetti(false);
       hasAwardedWinRef.current = false;
+      hasReportedCompleteRef.current = false;
     },
-    [cardValues, clearConfettiTimer, clearFlipBackTimer],
+    [cardValues, clearConfettiTimer, clearFeedbackTimer, clearFlipBackTimer, stopElapsedTimer],
   );
-
-  const saveBestIfNeeded = useCallback((mode: Difficulty, finalMoves: number) => {
-    setBestMoves((previous) => {
-      const existing = previous[mode];
-      if (existing !== null && existing <= finalMoves) {
-        return previous;
-      }
-
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(BEST_KEYS[mode], String(finalMoves));
-      }
-
-      if (mode === "easy") {
-        return { ...previous, easy: finalMoves };
-      }
-      if (mode === "normal") {
-        return { ...previous, normal: finalMoves };
-      }
-      return { ...previous, hard: finalMoves };
-    });
-  }, []);
-
-  const syncUnlockState = useCallback(() => {
-    const unlocked = getUnlockedFeatures();
-    setMemoryHardUnlocked(unlocked.memoryHardUnlocked);
-  }, []);
 
   const handleDifficultyChange = (nextDifficulty: Difficulty) => {
     if (nextDifficulty === "normal" && !memoryHardUnlocked) {
@@ -253,6 +422,14 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
   };
 
   const handleCardPress = (index: number) => {
+    if (tapFrameGuardRef.current) {
+      return;
+    }
+    tapFrameGuardRef.current = true;
+    window.requestAnimationFrame(() => {
+      tapFrameGuardRef.current = false;
+    });
+
     if (lockBoardRef.current || gameStateRef.current === "won" || isTimeUp) {
       return;
     }
@@ -264,13 +441,14 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
     }
 
     const currentlyFlipped = flippedIndexesRef.current;
-    if (currentlyFlipped.length >= 2) {
+    if (currentlyFlipped.length >= 2 || currentlyFlipped.includes(index)) {
       return;
     }
 
     if (gameStateRef.current === "ready") {
       gameStateRef.current = "playing";
       setGameState("playing");
+      startElapsedTimer();
     }
 
     const withFlip = currentCards.map((card, cardIndex) =>
@@ -299,6 +477,8 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
     setMoves(nextMoveCount);
 
     if (firstCard.value === secondCard.value) {
+      showFeedback("match");
+
       const withMatch = withFlip.map((card, cardIndex) =>
         cardIndex === firstIndex || cardIndex === secondIndex ? { ...card, isMatched: true } : card,
       );
@@ -313,6 +493,11 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
       setMatches(nextMatchCount);
 
       if (nextMatchCount === cardValues[difficultyRef.current].length) {
+        const finalElapsed = getElapsedNow();
+        elapsedMsRef.current = finalElapsed;
+        setElapsedMs(finalElapsed);
+        stopElapsedTimer();
+
         gameStateRef.current = "won";
         lockBoardRef.current = true;
         setGameState("won");
@@ -332,13 +517,18 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
           hasAwardedWinRef.current = true;
         }
 
-        saveBestIfNeeded(difficultyRef.current, nextMoveCount);
-        onComplete?.();
+        saveBestIfNeeded(difficultyRef.current, nextMoveCount, finalElapsed);
+
+        if (!hasReportedCompleteRef.current) {
+          hasReportedCompleteRef.current = true;
+          onComplete?.();
+        }
       }
 
       return;
     }
 
+    showFeedback("mismatch");
     lockBoardRef.current = true;
     setLockBoard(true);
     clearFlipBackTimer();
@@ -358,26 +548,58 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
       setFlippedIndexes([]);
       setLockBoard(false);
       flipBackTimerRef.current = null;
-    }, 650);
+    }, MISMATCH_FLIP_BACK_MS);
   };
+
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+
+  useEffect(() => {
+    flippedIndexesRef.current = flippedIndexes;
+  }, [flippedIndexes]);
+
+  useEffect(() => {
+    movesRef.current = moves;
+  }, [moves]);
+
+  useEffect(() => {
+    matchesRef.current = matches;
+  }, [matches]);
+
+  useEffect(() => {
+    elapsedMsRef.current = elapsedMs;
+  }, [elapsedMs]);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  useEffect(() => {
+    lockBoardRef.current = lockBoard;
+  }, [lockBoard]);
+
+  useEffect(() => {
+    difficultyRef.current = difficulty;
+  }, [difficulty]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    syncUnlockState();
-    window.addEventListener("storage", syncUnlockState);
-
-    setBestMoves({
-      easy: parseStoredBest(window.localStorage.getItem(BEST_KEYS.easy)),
-      normal: parseStoredBest(window.localStorage.getItem(BEST_KEYS.normal)),
-      hard: parseStoredBest(window.localStorage.getItem(BEST_KEYS.hard)),
-    });
-    return () => {
-      window.removeEventListener("storage", syncUnlockState);
+    const syncFromStorage = () => {
+      syncUnlockState();
+      loadBestRecords();
     };
-  }, [syncUnlockState]);
+
+    syncFromStorage();
+    window.addEventListener("storage", syncFromStorage);
+
+    return () => {
+      window.removeEventListener("storage", syncFromStorage);
+    };
+  }, [loadBestRecords, syncUnlockState]);
 
   useEffect(() => {
     difficultyRef.current = "easy";
@@ -416,11 +638,20 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
   }, [gameState, isTimeUp]);
 
   useEffect(() => {
+    if (!isTimeUp) {
+      return;
+    }
+    stopElapsedTimer();
+  }, [isTimeUp, stopElapsedTimer]);
+
+  useEffect(() => {
     return () => {
       clearFlipBackTimer();
+      clearFeedbackTimer();
       clearConfettiTimer();
+      stopElapsedTimer();
     };
-  }, [clearConfettiTimer, clearFlipBackTimer]);
+  }, [clearConfettiTimer, clearFeedbackTimer, clearFlipBackTimer, stopElapsedTimer]);
 
   return (
     <div className={arcade.pageWrap}>
@@ -429,12 +660,15 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className={`text-xl font-black ${arcade.glowText}`}>Memory Match</h2>
-              <p className={`text-sm ${arcade.subtleText}`}>Flip cards and match every pair.</p>
+              <p className={`text-sm ${arcade.subtleText}`}>Find the pairs! Flip cards and match every icon.</p>
             </div>
             <div className="flex flex-wrap gap-2 md:justify-end">
               <span className={`${arcade.chip} ${statusClass}`}>{statusText}</span>
               <span className={arcade.chip}>
                 Moves: <strong className="font-black text-white">{moves}</strong>
+              </span>
+              <span className={arcade.chip}>
+                Time: <strong className="font-black text-white">{formatDuration(elapsedMs)}</strong>
               </span>
               <span className={arcade.chip}>
                 Matches: <strong className="font-black text-white">{matches}/{totalPairs}</strong>
@@ -500,7 +734,14 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
               </button>
             </div>
             <span className={arcade.chip}>
-              Best: <strong className="font-black text-cyan-100">{currentBest ?? "--"}</strong>
+              Best Moves:{" "}
+              <strong className="font-black text-cyan-100">{currentBestMoves ?? "--"}</strong>
+            </span>
+            <span className={arcade.chip}>
+              Best Time:{" "}
+              <strong className="font-black text-cyan-100">
+                {currentBestTime ? formatDuration(currentBestTime) : "--"}
+              </strong>
             </span>
           </div>
         </div>
@@ -508,7 +749,10 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
         <div className={`${arcade.panel} relative mt-4`}>
           <ConfettiBurst active={showConfetti} className="rounded-2xl" />
 
-          <div className={`grid ${gridClass} ${lockBoard || isTimeUp ? "pointer-events-none" : ""}`}>
+          <div
+            className={`grid ${gridClass} ${lockBoard || isTimeUp ? "pointer-events-none" : ""}`}
+            style={{ touchAction: gameState === "playing" ? "none" : "manipulation" }}
+          >
             {cards.map((card, index) => {
               const isFaceUp = card.isFlipped || card.isMatched;
 
@@ -520,11 +764,7 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
                   disabled={lockBoard || card.isMatched || card.isFlipped || gameState === "won" || isTimeUp}
                   className={`${arcade.tileButton} ${
                     isFaceUp ? arcade.tileButtonPressed : ""
-                  } ${cardSizeClass} overflow-hidden ${
-                    card.isMatched
-                      ? "border-emerald-200/75 bg-emerald-300/15 shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_18px_rgba(52,211,153,0.3)]"
-                      : ""
-                  }`}
+                  } ${cardSizeClass} overflow-hidden ${card.isMatched ? "pp-memory-matched" : ""}`}
                   aria-label={
                     isFaceUp ? `Card ${index + 1}, ${card.value}` : `Card ${index + 1}, hidden memory card`
                   }
@@ -549,12 +789,12 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
           {gameState === "won" ? (
             <GameEndOverlay
               title="You win!"
-              subtitle="All pairs found. Nice memory run."
+              subtitle="All pairs found. Great matching!"
               stats={[
                 { label: "Moves", value: moves },
-                { label: "Pairs", value: `${matches}/${totalPairs}` },
-                { label: "Best", value: currentBest ?? "--" },
-                { label: "Mode", value: difficulty },
+                { label: "Time", value: formatDuration(elapsedMs) },
+                { label: "Best Moves", value: currentBestMoves ?? "--" },
+                { label: "Best Time", value: currentBestTime ? formatDuration(currentBestTime) : "--" },
               ]}
               onPrimary={() => resetBoard(difficultyRef.current)}
               onSecondary={() => router.push("/play")}
@@ -571,7 +811,8 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
           height: 100%;
           width: 100%;
           transform-style: preserve-3d;
-          transition: transform 220ms ease;
+          transition: transform 260ms cubic-bezier(0.22, 0.85, 0.3, 1);
+          will-change: transform;
         }
 
         .pp-memory-inner.is-open {
@@ -584,22 +825,62 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
           display: flex;
           align-items: center;
           justify-content: center;
-          backface-visibility: hidden;
           border-radius: 0.85rem;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
 
         .pp-memory-front {
+          position: relative;
           background:
-            radial-gradient(circle at 22% 22%, rgba(167, 139, 250, 0.28), transparent 42%),
-            radial-gradient(circle at 78% 78%, rgba(34, 211, 238, 0.2), transparent 46%),
-            linear-gradient(180deg, rgba(15, 23, 42, 0.94) 0%, rgba(2, 6, 23, 0.95) 100%);
+            radial-gradient(circle at 18% 18%, rgba(167, 139, 250, 0.26), transparent 46%),
+            radial-gradient(circle at 82% 82%, rgba(34, 211, 238, 0.2), transparent 48%),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(2, 6, 23, 0.98) 100%);
           box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.24);
+          overflow: hidden;
+        }
+
+        .pp-memory-front::after {
+          content: "";
+          position: absolute;
+          inset: 10px;
+          border-radius: 0.65rem;
+          background:
+            repeating-linear-gradient(
+              135deg,
+              rgba(167, 139, 250, 0.16) 0 8px,
+              rgba(34, 211, 238, 0.08) 8px 16px
+            );
+          opacity: 0.55;
+        }
+
+        .pp-memory-front > span {
+          position: relative;
+          z-index: 1;
         }
 
         .pp-memory-back {
           transform: rotateY(180deg);
           background: linear-gradient(180deg, rgba(88, 28, 135, 0.34) 0%, rgba(15, 23, 42, 0.96) 100%);
-          box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.28);
+          box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.3);
+        }
+
+        .pp-memory-matched {
+          border-color: rgba(167, 243, 208, 0.9);
+          background: rgba(16, 185, 129, 0.12);
+          box-shadow:
+            0 0 0 1px rgba(110, 231, 183, 0.45),
+            0 0 22px rgba(52, 211, 153, 0.26);
+          animation: pp-memory-lock-in 260ms ease-out;
+        }
+
+        @keyframes pp-memory-lock-in {
+          0% {
+            transform: scale(0.98);
+          }
+          100% {
+            transform: scale(1);
+          }
         }
       `}</style>
     </div>
