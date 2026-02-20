@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import ConfettiBurst from "@/src/components/ConfettiBurst";
+import GameEndOverlay from "@/src/components/GameEndOverlay";
+import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
-import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 
 type Mark = "X" | "O" | null;
@@ -21,21 +24,6 @@ const WIN_LINES: number[][] = [
   [2, 5, 8],
   [0, 4, 8],
   [2, 4, 6],
-];
-
-const CONFETTI_PIECES = [
-  { left: "6%", color: "#f472b6", delay: "0ms", duration: "880ms", rotate: -12 },
-  { left: "12%", color: "#f59e0b", delay: "30ms", duration: "900ms", rotate: 16 },
-  { left: "18%", color: "#a78bfa", delay: "70ms", duration: "860ms", rotate: -18 },
-  { left: "25%", color: "#22d3ee", delay: "20ms", duration: "920ms", rotate: 10 },
-  { left: "33%", color: "#34d399", delay: "50ms", duration: "870ms", rotate: -10 },
-  { left: "41%", color: "#fde047", delay: "80ms", duration: "910ms", rotate: 20 },
-  { left: "49%", color: "#fb7185", delay: "120ms", duration: "840ms", rotate: -14 },
-  { left: "57%", color: "#38bdf8", delay: "40ms", duration: "900ms", rotate: 12 },
-  { left: "65%", color: "#f472b6", delay: "100ms", duration: "860ms", rotate: -20 },
-  { left: "73%", color: "#f59e0b", delay: "70ms", duration: "900ms", rotate: 18 },
-  { left: "81%", color: "#34d399", delay: "120ms", duration: "920ms", rotate: -16 },
-  { left: "89%", color: "#a78bfa", delay: "150ms", duration: "880ms", rotate: 14 },
 ];
 
 const INITIAL_BOARD: Board = Array(9).fill(null);
@@ -112,7 +100,7 @@ function isTurnForMark(board: Board, mark: PlayerMark): boolean {
 function MarkPiece({ mark }: { mark: PlayerMark }) {
   if (mark === "X") {
     return (
-      <div className="mark-pop relative h-12 w-12 sm:h-14 sm:w-14" aria-hidden="true">
+      <div className="pp-mark-pop relative h-12 w-12 sm:h-14 sm:w-14" aria-hidden="true">
         <span className="absolute left-1/2 top-1/2 h-2.5 w-full -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-violet-300 shadow-[0_0_10px_rgba(196,181,253,0.75)]" />
         <span className="absolute left-1/2 top-1/2 h-2.5 w-full -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full bg-violet-300 shadow-[0_0_10px_rgba(196,181,253,0.75)]" />
       </div>
@@ -121,7 +109,7 @@ function MarkPiece({ mark }: { mark: PlayerMark }) {
 
   return (
     <div
-      className="mark-pop h-12 w-12 rounded-full border-[8px] border-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)] sm:h-14 sm:w-14"
+      className="pp-mark-pop h-12 w-12 rounded-full border-[8px] border-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)] sm:h-14 sm:w-14"
       aria-hidden="true"
     />
   );
@@ -138,13 +126,15 @@ function ThinkingDots() {
 }
 
 export default function TicTacToe() {
+  const router = useRouter();
   const [board, setBoard] = useState<Board>(INITIAL_BOARD);
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [playerMark, setPlayerMark] = useState<PlayerMark>("X");
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [hasCelebratedWin, setHasCelebratedWin] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
+
+  const confettiTimerRef = useRef<number | null>(null);
   const hasAwardedWinRef = useRef(false);
 
   const aiMark = useMemo(() => getOpponent(playerMark), [playerMark]);
@@ -153,6 +143,7 @@ export default function TicTacToe() {
   const hasStarted = useMemo(() => board.some((cell) => cell !== null), [board]);
   const isDraw = !winnerData.winner && availableMoves.length === 0;
   const isGameOver = Boolean(winnerData.winner) || isDraw;
+  const movesPlayed = 9 - availableMoves.length;
 
   const statusText = useMemo(() => {
     if (winnerData.winner === playerMark) {
@@ -167,21 +158,20 @@ export default function TicTacToe() {
     if (isAiThinking) {
       return "Bot thinking...";
     }
-    return "Your turn";
-  }, [winnerData.winner, playerMark, aiMark, isDraw, isAiThinking]);
+    if (!hasStarted) {
+      return "Tap to start";
+    }
+    return "You got this";
+  }, [winnerData.winner, playerMark, aiMark, isDraw, isAiThinking, hasStarted]);
 
-  const bannerText = useMemo(() => {
-    if (winnerData.winner === playerMark) {
-      return "You win!";
-    }
-    if (winnerData.winner === aiMark) {
-      return "Good try!";
-    }
-    if (isDraw) {
-      return "Draw — rematch?";
-    }
-    return null;
-  }, [winnerData.winner, playerMark, aiMark, isDraw]);
+  const statusClass =
+    winnerData.winner === playerMark
+      ? arcade.badgeLive
+      : winnerData.winner === aiMark || isDraw
+        ? arcade.badgeSoon
+        : isAiThinking
+          ? "border-cyan-200/40 bg-cyan-300/15 text-cyan-100"
+          : "";
 
   useEffect(() => {
     if (isGameOver || isAiThinking) {
@@ -218,15 +208,19 @@ export default function TicTacToe() {
   }, [board, isAiThinking, isGameOver, aiMark, playerMark, difficulty]);
 
   useEffect(() => {
-    if (winnerData.winner !== playerMark || hasCelebratedWin) {
+    if (winnerData.winner !== playerMark) {
       return;
     }
 
-    setHasCelebratedWin(true);
     setShowConfetti(true);
-    const timer = window.setTimeout(() => setShowConfetti(false), 900);
-    return () => window.clearTimeout(timer);
-  }, [winnerData.winner, playerMark, hasCelebratedWin]);
+    if (confettiTimerRef.current !== null) {
+      window.clearTimeout(confettiTimerRef.current);
+    }
+    confettiTimerRef.current = window.setTimeout(() => {
+      setShowConfetti(false);
+      confettiTimerRef.current = null;
+    }, 900);
+  }, [winnerData.winner, playerMark]);
 
   useEffect(() => {
     if (winnerData.winner !== playerMark || hasAwardedWinRef.current) {
@@ -268,8 +262,16 @@ export default function TicTacToe() {
     return startSessionTick();
   }, [isTimeUp, hasStarted, isGameOver]);
 
+  useEffect(() => {
+    return () => {
+      if (confettiTimerRef.current !== null) {
+        window.clearTimeout(confettiTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleCellPress = (index: number) => {
-    if (isAiThinking || isGameOver || board[index] !== null) {
+    if (isAiThinking || isGameOver || board[index] !== null || isTimeUp) {
       return;
     }
     if (!isTurnForMark(board, playerMark)) {
@@ -289,7 +291,6 @@ export default function TicTacToe() {
     setBoard(INITIAL_BOARD);
     setIsAiThinking(false);
     setShowConfetti(false);
-    setHasCelebratedWin(false);
     setDifficulty("easy");
     hasAwardedWinRef.current = false;
   };
@@ -299,7 +300,6 @@ export default function TicTacToe() {
     setBoard(INITIAL_BOARD);
     setIsAiThinking(false);
     setShowConfetti(false);
-    setHasCelebratedWin(false);
     hasAwardedWinRef.current = false;
   };
 
@@ -307,23 +307,39 @@ export default function TicTacToe() {
     <div className={arcade.pageWrap}>
       <div className={`${arcade.gameFrame} arcade-glow relative`}>
         <div className={arcade.headerBar}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className={`text-xl font-black ${arcade.glowText}`}>Tic Tac Toe</h2>
-              <p className={`text-sm ${arcade.subtleText}`}>Beat the bot</p>
+              <p className={`text-sm ${arcade.subtleText}`}>Classic 3x3 strategy rounds.</p>
             </div>
-            <div
-              className={`${arcade.chip} ${
-                winnerData.winner === playerMark
-                  ? arcade.badgeLive
-                  : winnerData.winner === aiMark || isDraw
-                    ? arcade.badgeSoon
-                    : ""
-              }`}
-            >
-              <span>{statusText}</span>
-              {isAiThinking ? <ThinkingDots /> : null}
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <span className={`${arcade.chip} ${statusClass}`}>
+                <span>{statusText}</span>
+                {isAiThinking ? <ThinkingDots /> : null}
+              </span>
+              <span className={arcade.chip}>
+                Moves: <strong className="font-black text-white">{movesPlayed}</strong>
+              </span>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={handleReset} className={arcade.primaryButton}>
+              Play Again
+            </button>
+            <div className="inline-flex rounded-xl border border-slate-200/20 bg-slate-900 p-1">
+              <button
+                type="button"
+                onClick={() => setDifficulty("easy")}
+                aria-pressed={difficulty === "easy"}
+                className="rounded-md bg-emerald-300 px-3 py-1.5 text-sm font-semibold text-emerald-950"
+              >
+                Easy
+              </button>
+            </div>
+            <button type="button" onClick={handleSwapSides} className={arcade.secondaryButton}>
+              Swap Sides
+            </button>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -336,61 +352,12 @@ export default function TicTacToe() {
               Bot: {aiMark}
             </span>
           </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-xl border border-slate-200/20 bg-slate-900 p-1">
-              <button
-                type="button"
-                onClick={() => setDifficulty("easy")}
-                aria-pressed={difficulty === "easy"}
-                className="rounded-md bg-emerald-300 px-3 py-1 text-sm font-semibold text-emerald-950"
-              >
-                Easy
-              </button>
-            </div>
-            <button type="button" onClick={handleReset} className={arcade.primaryButton}>
-              Play again
-            </button>
-            <button type="button" onClick={handleSwapSides} className={arcade.secondaryButton}>
-              Swap sides
-            </button>
-          </div>
         </div>
 
-        {bannerText ? (
-          <div
-            className={`mt-3 rounded-xl border px-3 py-2 text-center text-sm font-semibold ${
-              winnerData.winner === playerMark
-                ? "border-emerald-200/45 bg-emerald-300/15 text-emerald-100"
-                : winnerData.winner === aiMark
-                  ? "border-amber-200/45 bg-amber-300/15 text-amber-100"
-                  : "border-slate-200/20 bg-slate-900/80 text-slate-100"
-            }`}
-          >
-            {bannerText}
-          </div>
-        ) : null}
-
         <div className={`${arcade.panel} relative mt-4`}>
-          {showConfetti ? (
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-              {CONFETTI_PIECES.map((piece, index) => (
-                <span
-                  key={index}
-                  className="confetti-piece absolute top-0 h-2.5 w-2 rounded-sm"
-                  style={{
-                    left: piece.left,
-                    backgroundColor: piece.color,
-                    animationDelay: piece.delay,
-                    animationDuration: piece.duration,
-                    transform: `rotate(${piece.rotate}deg)`,
-                  }}
-                />
-              ))}
-            </div>
-          ) : null}
+          <ConfettiBurst active={showConfetti} className="rounded-2xl" />
 
-          <div className={`grid grid-cols-3 gap-3 ${isAiThinking ? "pointer-events-none opacity-90" : ""}`}>
+          <div className={`grid grid-cols-3 gap-3 ${isAiThinking || isTimeUp ? "pointer-events-none opacity-90" : ""}`}>
             {board.map((cell, index) => {
               const isWinningCell = winnerData.line?.includes(index) ?? false;
               const cellPressed = cell !== null;
@@ -400,14 +367,14 @@ export default function TicTacToe() {
                   key={index}
                   type="button"
                   onClick={() => handleCellPress(index)}
-                  disabled={isAiThinking || isGameOver || cell !== null}
+                  disabled={isAiThinking || isGameOver || cell !== null || isTimeUp}
                   className={`${arcade.tileButton} ${
                     cellPressed ? arcade.tileButtonPressed : ""
                   } ${
                     isWinningCell
                       ? "border-emerald-200 bg-emerald-400/25 shadow-[0_0_0_1px_rgba(110,231,183,0.6),0_0_22px_rgba(52,211,153,0.45)]"
                       : ""
-                  } ${isAiThinking || isGameOver || cell !== null ? "cursor-default" : "cursor-pointer"}`}
+                  } ${isAiThinking || isGameOver || cell !== null || isTimeUp ? "cursor-default" : "cursor-pointer"}`}
                   aria-label={`Cell ${index + 1}`}
                 >
                   {cell ? <MarkPiece mark={cell} /> : null}
@@ -415,24 +382,43 @@ export default function TicTacToe() {
               );
             })}
           </div>
+
+          {isGameOver ? (
+            <GameEndOverlay
+              title={
+                winnerData.winner === playerMark
+                  ? "You win!"
+                  : winnerData.winner === aiMark
+                    ? "Good try!"
+                    : "Draw — rematch?"
+              }
+              subtitle={
+                winnerData.winner === playerMark
+                  ? "Great strategy round."
+                  : winnerData.winner === aiMark
+                    ? "The bot got this one."
+                    : "Even match. Run it back."
+              }
+              stats={[
+                { label: "Moves", value: movesPlayed },
+                { label: "You", value: playerMark },
+                { label: "Bot", value: aiMark },
+              ]}
+              onPrimary={handleReset}
+              onSecondary={() => router.push("/play")}
+            />
+          ) : null}
         </div>
 
         {isTimeUp ? <TimeUpOverlay backHref="/play" /> : null}
       </div>
 
       <style jsx>{`
-        .mark-pop {
-          animation: mark-pop 180ms ease-out both;
+        .pp-mark-pop {
+          animation: pp-mark-pop 180ms ease-out both;
         }
 
-        .confetti-piece {
-          animation-name: confetti-fall;
-          animation-timing-function: ease-out;
-          animation-fill-mode: forwards;
-          opacity: 0;
-        }
-
-        @keyframes mark-pop {
+        @keyframes pp-mark-pop {
           0% {
             transform: scale(0.85);
             opacity: 0;
@@ -440,20 +426,6 @@ export default function TicTacToe() {
           100% {
             transform: scale(1);
             opacity: 1;
-          }
-        }
-
-        @keyframes confetti-fall {
-          0% {
-            transform: translateY(-8px) rotate(0deg);
-            opacity: 0;
-          }
-          14% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(195px) rotate(190deg);
-            opacity: 0;
           }
         }
       `}</style>

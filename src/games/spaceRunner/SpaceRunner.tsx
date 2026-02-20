@@ -10,9 +10,12 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
+import ConfettiBurst from "@/src/components/ConfettiBurst";
+import GameEndOverlay from "@/src/components/GameEndOverlay";
+import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
-import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 
 type RunnerState = "ready" | "playing" | "game_over";
@@ -36,6 +39,7 @@ type Box = {
 const HIGH_SCORE_KEY = "pp_space_runner_high_score";
 const DEFAULT_ARENA_HEIGHT = 360;
 const DEFAULT_ARENA_WIDTH = 720;
+const CONFETTI_SCORE_THRESHOLD = 80;
 
 const GROUND_HEIGHT = 56;
 const PLAYER_SIZE = 52;
@@ -58,6 +62,8 @@ function hasOverlap(a: Box, b: Box): boolean {
 }
 
 export default function SpaceRunner() {
+  const router = useRouter();
+
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const arenaHeightRef = useRef(DEFAULT_ARENA_HEIGHT);
   const rafRef = useRef<number | null>(null);
@@ -74,6 +80,7 @@ export default function SpaceRunner() {
   const scoreRef = useRef(0);
   const gameStateRef = useRef<RunnerState>("ready");
   const hasAwardedRoundRef = useRef(false);
+  const confettiTimerRef = useRef<number | null>(null);
 
   const [gameState, setGameState] = useState<RunnerState>("ready");
   const [arenaHeight, setArenaHeight] = useState(DEFAULT_ARENA_HEIGHT);
@@ -84,15 +91,16 @@ export default function SpaceRunner() {
   const [scorePopping, setScorePopping] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [isTimeUp, setIsTimeUp] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const statusText = useMemo(() => {
     if (gameState === "ready") {
       return "Tap to start";
     }
     if (gameState === "game_over") {
-      return "Game over";
+      return "Crashed! Try again.";
     }
-    return "Running";
+    return "You got this";
   }, [gameState]);
 
   const syncRenderableState = useCallback(() => {
@@ -113,6 +121,13 @@ export default function SpaceRunner() {
     return Math.max(0, arenaHeightRef.current - GROUND_HEIGHT - PLAYER_SIZE);
   }, []);
 
+  const clearConfettiTimer = useCallback(() => {
+    if (confettiTimerRef.current !== null) {
+      window.clearTimeout(confettiTimerRef.current);
+      confettiTimerRef.current = null;
+    }
+  }, []);
+
   const resetRound = useCallback(() => {
     const groundY = getPlayerGroundY();
     playerYRef.current = groundY;
@@ -127,12 +142,15 @@ export default function SpaceRunner() {
     scoreRef.current = 0;
     hasAwardedRoundRef.current = false;
 
+    clearConfettiTimer();
+    setShowConfetti(false);
+
     setPlayerY(groundY);
     setPlayerTilt(0);
     setObstacles([]);
     setScore(0);
     setScorePopping(false);
-  }, [getPlayerGroundY]);
+  }, [clearConfettiTimer, getPlayerGroundY]);
 
   const finishRound = useCallback(() => {
     stopLoop();
@@ -149,7 +167,16 @@ export default function SpaceRunner() {
       }
       return finalScore;
     });
-  }, [stopLoop]);
+
+    if (finalScore >= CONFETTI_SCORE_THRESHOLD) {
+      setShowConfetti(true);
+      clearConfettiTimer();
+      confettiTimerRef.current = window.setTimeout(() => {
+        setShowConfetti(false);
+        confettiTimerRef.current = null;
+      }, 900);
+    }
+  }, [clearConfettiTimer, stopLoop]);
 
   const tick = useCallback(
     (time: number) => {
@@ -390,36 +417,45 @@ export default function SpaceRunner() {
   }, []);
 
   useEffect(() => {
-    return () => stopLoop();
-  }, [stopLoop]);
+    return () => {
+      stopLoop();
+      clearConfettiTimer();
+    };
+  }, [clearConfettiTimer, stopLoop]);
 
-  const statusClass = gameState === "game_over" ? arcade.badgeSoon : arcade.badgeLive;
+  const statusClass = gameState === "game_over" ? arcade.badgeSoon : gameState === "playing" ? arcade.badgeLive : "";
 
   return (
     <div className={arcade.pageWrap}>
-      <div className={`${arcade.gameFrame} arcade-glow`}>
+      <div className={`${arcade.gameFrame} arcade-glow relative`}>
         <div className={arcade.headerBar}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className={`text-xl font-black ${arcade.glowText}`}>Space Runner</h2>
-              <p className={`text-sm ${arcade.subtleText}`}>Jump over asteroids and chase your best score.</p>
+              <p className={`text-sm ${arcade.subtleText}`}>Jump clean, dodge asteroids, beat your best.</p>
             </div>
-            <span className={`${arcade.chip} ${statusClass}`}>{statusText}</span>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <span className={`${arcade.chip} ${statusClass}`}>{statusText}</span>
+              <span className={arcade.chip}>
+                Score: <strong className={`font-black text-white ${scorePopping ? "pp-score-pop" : ""}`}>{score}</strong>
+              </span>
+              <span className={arcade.chip}>
+                High: <strong className="font-black text-cyan-100">{highScore}</strong>
+              </span>
+            </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <div className={`${arcade.chip} justify-center sm:justify-start`}>
-              <span>Score:</span>
-              <strong className={`font-black text-white ${scorePopping ? "score-pop" : ""}`}>{score}</strong>
-            </div>
-            <div className={`${arcade.chip} justify-center sm:justify-start`}>
-              <span>High Score:</span>
-              <strong className="font-black text-cyan-100">{highScore}</strong>
-            </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={startRound} className={arcade.primaryButton}>
+              Play Again
+            </button>
+            <span className={arcade.chip}>Tap anywhere to jump</span>
           </div>
         </div>
 
         <div className={`${arcade.panel} relative mt-4`}>
+          <ConfettiBurst active={showConfetti} className="rounded-2xl" />
+
           <div
             ref={arenaRef}
             role="button"
@@ -435,15 +471,9 @@ export default function SpaceRunner() {
           >
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(56,189,248,0.2),transparent_42%),radial-gradient(circle_at_78%_4%,rgba(168,85,247,0.2),transparent_46%),linear-gradient(180deg,rgba(12,19,52,0.96)_0%,rgba(2,6,23,0.98)_100%)]" />
-              <div className="stars-layer stars-layer-one absolute inset-0" />
-              <div className="stars-layer stars-layer-two absolute inset-0" />
+              <div className="pp-stars-layer pp-stars-layer-one absolute inset-0" />
+              <div className="pp-stars-layer pp-stars-layer-two absolute inset-0" />
             </div>
-
-            {gameState === "playing" ? (
-              <p className="pointer-events-none absolute left-3 top-3 z-30 rounded-full border border-slate-100/20 bg-slate-900/70 px-2.5 py-1 text-xs font-medium text-slate-200">
-                Tap to jump
-              </p>
-            ) : null}
 
             {obstacles.map((obstacle) => (
               <div
@@ -481,23 +511,28 @@ export default function SpaceRunner() {
             {gameState === "ready" ? (
               <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center px-4">
                 <div className="rounded-2xl border border-slate-100/20 bg-slate-900/75 px-5 py-4 text-center shadow-[0_12px_28px_rgba(2,6,23,0.55)]">
-                  <p className="text-base font-bold text-white">Tap to Start</p>
+                  <p className="text-base font-bold text-white">Tap to start</p>
                   <p className="mt-1 text-sm text-slate-300">Tap again to jump over asteroids.</p>
                 </div>
               </div>
             ) : null}
 
             {gameState === "game_over" ? (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/65 px-4">
-                <div className="w-full max-w-xs rounded-2xl border border-slate-100/20 bg-slate-900/90 p-4 text-center shadow-[0_14px_30px_rgba(2,6,23,0.6)]">
-                  <p className="text-lg font-black text-white">Game Over</p>
-                  <p className="mt-1 text-sm text-slate-200">Score: {score}</p>
-                  <p className="mt-1 text-sm text-slate-300">High Score: {Math.max(score, highScore)}</p>
-                  <button type="button" onClick={startRound} className={`${arcade.primaryButton} mt-4 w-full`}>
-                    Play Again
-                  </button>
-                </div>
-              </div>
+              <GameEndOverlay
+                title="Crashed! Try again."
+                subtitle={
+                  score >= CONFETTI_SCORE_THRESHOLD
+                    ? "Star run. That was a big score."
+                    : "Reset and go for a longer run."
+                }
+                stats={[
+                  { label: "Score", value: score },
+                  { label: "High", value: Math.max(score, highScore) },
+                  { label: "Mode", value: "Endless" },
+                ]}
+                onPrimary={startRound}
+                onSecondary={() => router.push("/play")}
+              />
             ) : null}
           </div>
         </div>
@@ -506,28 +541,28 @@ export default function SpaceRunner() {
       </div>
 
       <style jsx>{`
-        .stars-layer {
+        .pp-stars-layer {
           background-image: radial-gradient(circle, rgba(255, 255, 255, 0.78) 1px, transparent 1.35px);
           background-size: 26px 26px;
           opacity: 0.14;
         }
 
-        .stars-layer-one {
-          animation: stars-drift-a 32s linear infinite;
+        .pp-stars-layer-one {
+          animation: pp-stars-drift-a 32s linear infinite;
         }
 
-        .stars-layer-two {
+        .pp-stars-layer-two {
           opacity: 0.08;
           background-size: 38px 38px;
-          animation: stars-drift-b 44s linear infinite;
+          animation: pp-stars-drift-b 44s linear infinite;
         }
 
-        .score-pop {
+        .pp-score-pop {
           display: inline-block;
-          animation: score-pop 150ms ease-out both;
+          animation: pp-score-pop 150ms ease-out both;
         }
 
-        @keyframes stars-drift-a {
+        @keyframes pp-stars-drift-a {
           from {
             transform: translate3d(0, 0, 0);
           }
@@ -536,7 +571,7 @@ export default function SpaceRunner() {
           }
         }
 
-        @keyframes stars-drift-b {
+        @keyframes pp-stars-drift-b {
           from {
             transform: translate3d(0, 0, 0);
           }
@@ -545,7 +580,7 @@ export default function SpaceRunner() {
           }
         }
 
-        @keyframes score-pop {
+        @keyframes pp-score-pop {
           0% {
             transform: scale(0.86);
             opacity: 0.75;
