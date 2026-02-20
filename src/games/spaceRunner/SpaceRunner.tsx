@@ -671,26 +671,42 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
       <div className={`${arcade.gameFrame} arcade-glow relative`}>
         <div className={arcade.headerBar}>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h2 className={`text-xl font-black ${arcade.glowText}`}>Space Runner</h2>
+            <div className="md:shrink-0">
+              <h2 className={`whitespace-nowrap text-xl font-black ${arcade.glowText}`}>Space Runner</h2>
               <p className={`text-sm ${arcade.subtleText}`}>Jump clean, dodge asteroids, beat your best.</p>
             </div>
-            <div className="flex flex-wrap gap-2 md:justify-end">
+            <div className="flex flex-wrap gap-2 md:max-w-[66%] md:justify-end">
               <span className={`${arcade.chip} ${statusClass}`}>{statusText}</span>
               <span className={arcade.chip}>
-                Score: <strong className={`font-black text-white ${scorePopping ? "pp-score-pop" : ""}`}>{score}</strong>
+                Score:{" "}
+                <strong
+                  className={`inline-block min-w-[3ch] text-right font-black tabular-nums text-white ${scorePopping ? "pp-score-pop" : ""}`}
+                >
+                  {score}
+                </strong>
               </span>
               <span className={arcade.chip}>
-                Level: <strong className="font-black text-cyan-100">{level}</strong>
+                Level: <strong className="inline-block min-w-[2ch] text-right font-black tabular-nums text-cyan-100">{level}</strong>
               </span>
               <span className={arcade.chip}>
-                Speed: <strong className="font-black text-cyan-100">{speedDisplay}</strong>
+                Speed:{" "}
+                <strong className="inline-block min-w-[3ch] text-right font-black tabular-nums text-cyan-100">
+                  {speedDisplay}
+                </strong>
               </span>
               <span className={arcade.chip}>
-                Skin: <strong className="font-black text-cyan-100">Lv {rocketSkinLevel}</strong>
+                Skin:{" "}
+                <strong className="inline-block min-w-[4ch] text-right font-black tabular-nums text-cyan-100">
+                  Lv {rocketSkinLevel}
+                </strong>
               </span>
               <span className={`${arcade.chip} ${highChipClass}`}>
-                High: <strong className={`font-black ${hasNewBest ? "text-amber-100" : "text-cyan-100"}`}>{Math.max(highScore, score)}</strong>
+                High:{" "}
+                <strong
+                  className={`inline-block min-w-[3ch] text-right font-black tabular-nums ${hasNewBest ? "text-amber-100" : "text-cyan-100"}`}
+                >
+                  {Math.max(highScore, score)}
+                </strong>
                 {hasNewBest ? <span className="pp-new-best-tag">New Best!</span> : null}
               </span>
             </div>
@@ -838,7 +854,6 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
         }
 
         .pp-score-pop {
-          display: inline-block;
           animation: pp-score-pop 150ms ease-out both;
         }
 
