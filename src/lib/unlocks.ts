@@ -1,4 +1,5 @@
 import { getStarsTotal } from "./progress";
+import { safeGet, safeSet } from "./storageGuard";
 
 const LAST_UNLOCK_NOTIFIED_KEY = "pp_last_unlock_notified";
 
@@ -36,17 +37,18 @@ export function getUnlockedFeatures(): UnlockedFeatures {
 }
 
 function readLastUnlockNotified(): number {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-
-  const parsed = Number(window.localStorage.getItem(LAST_UNLOCK_NOTIFIED_KEY) ?? "0");
+  const raw = safeGet(LAST_UNLOCK_NOTIFIED_KEY, "0");
+  const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {
-    window.localStorage.setItem(LAST_UNLOCK_NOTIFIED_KEY, "0");
+    safeSet(LAST_UNLOCK_NOTIFIED_KEY, "0");
     return 0;
   }
 
-  return Math.floor(parsed);
+  const normalized = Math.floor(parsed);
+  if (raw !== String(normalized)) {
+    safeSet(LAST_UNLOCK_NOTIFIED_KEY, String(normalized));
+  }
+  return normalized;
 }
 
 export function getPendingUnlockNotice(stars = getTotalStars()): UnlockNotice | null {
@@ -59,10 +61,6 @@ export function getPendingUnlockNotice(stars = getTotalStars()): UnlockNotice | 
 }
 
 export function markUnlockNoticeSeen(threshold: number): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   if (!Number.isFinite(threshold) || threshold <= 0) {
     return;
   }
@@ -70,6 +68,10 @@ export function markUnlockNoticeSeen(threshold: number): void {
   const safeThreshold = Math.floor(threshold);
   const current = readLastUnlockNotified();
   if (safeThreshold > current) {
-    window.localStorage.setItem(LAST_UNLOCK_NOTIFIED_KEY, String(safeThreshold));
+    safeSet(LAST_UNLOCK_NOTIFIED_KEY, String(safeThreshold));
   }
+}
+
+export function resetUnlockNotices(): void {
+  safeSet(LAST_UNLOCK_NOTIFIED_KEY, "0");
 }

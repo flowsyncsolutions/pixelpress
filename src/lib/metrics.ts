@@ -1,3 +1,5 @@
+import { safeGetJSON, safeSetJSON } from "./storageGuard";
+
 const GLOBAL_KEY = "pp_metrics_global";
 const GAMES_KEY = "pp_metrics_games";
 const DAY_KEY = "pp_metrics_day";
@@ -200,23 +202,13 @@ function readJsonKey<T>(
   createFallback: () => T,
 ): T {
   const fallback = createFallback();
-  const raw = window.localStorage.getItem(key);
-
-  if (!raw) {
-    window.localStorage.setItem(key, JSON.stringify(fallback));
-    return fallback;
+  const value = safeGetJSON<unknown>(key, fallback);
+  const parsed = parse(value);
+  if (parsed) {
+    return parsed;
   }
 
-  try {
-    const parsed = parse(JSON.parse(raw));
-    if (parsed) {
-      return parsed;
-    }
-  } catch {
-    // Invalid JSON gets replaced with default below.
-  }
-
-  window.localStorage.setItem(key, JSON.stringify(fallback));
+  safeSetJSON(key, fallback);
   return fallback;
 }
 
@@ -237,9 +229,9 @@ function persistAll(snapshot: MetricsSnapshot): void {
     return;
   }
 
-  window.localStorage.setItem(GLOBAL_KEY, JSON.stringify(snapshot.global));
-  window.localStorage.setItem(GAMES_KEY, JSON.stringify(snapshot.games));
-  window.localStorage.setItem(DAY_KEY, JSON.stringify(snapshot.day));
+  safeSetJSON(GLOBAL_KEY, snapshot.global);
+  safeSetJSON(GAMES_KEY, snapshot.games);
+  safeSetJSON(DAY_KEY, snapshot.day);
 }
 
 function getLocalDayKey(date = new Date()): string {

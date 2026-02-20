@@ -1,3 +1,5 @@
+import { safeGet, safeSet } from "./storageGuard";
+
 const TIME_LIMIT_ENABLED_KEY = "pp_time_limit_enabled";
 const TIME_LIMIT_MINUTES_KEY = "pp_time_limit_minutes";
 const TIME_USED_TODAY_SECONDS_KEY = "pp_time_used_today_seconds";
@@ -33,52 +35,46 @@ function clampMinutes(value: number): number {
 }
 
 function readEnabled(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  return window.localStorage.getItem(TIME_LIMIT_ENABLED_KEY) === "true";
+  return safeGet(TIME_LIMIT_ENABLED_KEY, "false") === "true";
 }
 
 function readBaseLimitMinutes(): number {
-  if (typeof window === "undefined") {
-    return 30;
+  const raw = safeGet(TIME_LIMIT_MINUTES_KEY, "30");
+  const normalized = clampMinutes(toPositiveInt(raw, 30));
+  if (raw !== String(normalized)) {
+    safeSet(TIME_LIMIT_MINUTES_KEY, String(normalized));
   }
-  return clampMinutes(toPositiveInt(window.localStorage.getItem(TIME_LIMIT_MINUTES_KEY), 30));
+  return normalized;
 }
 
 function readUsedSeconds(): number {
-  if (typeof window === "undefined") {
-    return 0;
+  const raw = safeGet(TIME_USED_TODAY_SECONDS_KEY, "0");
+  const normalized = toPositiveInt(raw, 0);
+  if (raw !== String(normalized)) {
+    safeSet(TIME_USED_TODAY_SECONDS_KEY, String(normalized));
   }
-  return toPositiveInt(window.localStorage.getItem(TIME_USED_TODAY_SECONDS_KEY), 0);
+  return normalized;
 }
 
 function readExtraMinutesToday(): number {
-  if (typeof window === "undefined") {
-    return 0;
+  const raw = safeGet(TIME_EXTRA_TODAY_MINUTES_KEY, "0");
+  const normalized = toPositiveInt(raw, 0);
+  if (raw !== String(normalized)) {
+    safeSet(TIME_EXTRA_TODAY_MINUTES_KEY, String(normalized));
   }
-  return toPositiveInt(window.localStorage.getItem(TIME_EXTRA_TODAY_MINUTES_KEY), 0);
+  return normalized;
 }
 
 function writeUsedSeconds(value: number): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(TIME_USED_TODAY_SECONDS_KEY, String(Math.max(0, Math.floor(value))));
+  safeSet(TIME_USED_TODAY_SECONDS_KEY, String(Math.max(0, Math.floor(value))));
 }
 
 function writeLastTick(timestampMs: number): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(TIME_LAST_TICK_KEY, String(Math.max(0, Math.floor(timestampMs))));
+  safeSet(TIME_LAST_TICK_KEY, String(Math.max(0, Math.floor(timestampMs))));
 }
 
 function ensureDayKey(dayKey: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(TIME_DAY_KEY, dayKey);
+  safeSet(TIME_DAY_KEY, dayKey);
 }
 
 function getTotalLimitSeconds(): number {
@@ -88,16 +84,12 @@ function getTotalLimitSeconds(): number {
 }
 
 function advanceUsedTime(nowMs: number): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   if (!readEnabled()) {
     writeLastTick(nowMs);
     return;
   }
 
-  const lastTickRaw = window.localStorage.getItem(TIME_LAST_TICK_KEY);
+  const lastTickRaw = safeGet(TIME_LAST_TICK_KEY, String(nowMs));
   const lastTickMs = toPositiveInt(lastTickRaw, nowMs);
   const deltaMs = Math.max(0, nowMs - lastTickMs);
   const deltaSeconds = Math.floor(deltaMs / 1000);
@@ -126,21 +118,21 @@ export function resetIfNewDay(): void {
   }
 
   const today = getTodayKey();
-  const storedDay = window.localStorage.getItem(TIME_DAY_KEY);
+  const storedDay = safeGet(TIME_DAY_KEY, "");
 
   if (storedDay !== today) {
     ensureDayKey(today);
-    window.localStorage.setItem(TIME_USED_TODAY_SECONDS_KEY, "0");
-    window.localStorage.setItem(TIME_EXTRA_TODAY_MINUTES_KEY, "0");
+    safeSet(TIME_USED_TODAY_SECONDS_KEY, "0");
+    safeSet(TIME_EXTRA_TODAY_MINUTES_KEY, "0");
     writeLastTick(Date.now());
     return;
   }
 
-  if (window.localStorage.getItem(TIME_USED_TODAY_SECONDS_KEY) === null) {
-    window.localStorage.setItem(TIME_USED_TODAY_SECONDS_KEY, "0");
+  if (!safeGet(TIME_USED_TODAY_SECONDS_KEY, "")) {
+    safeSet(TIME_USED_TODAY_SECONDS_KEY, "0");
   }
-  if (window.localStorage.getItem(TIME_LIMIT_MINUTES_KEY) === null) {
-    window.localStorage.setItem(TIME_LIMIT_MINUTES_KEY, "30");
+  if (!safeGet(TIME_LIMIT_MINUTES_KEY, "")) {
+    safeSet(TIME_LIMIT_MINUTES_KEY, "30");
   }
 }
 
@@ -158,8 +150,8 @@ export function setTimeSettings(enabled: boolean, limitMinutes: number): void {
   }
 
   resetIfNewDay();
-  window.localStorage.setItem(TIME_LIMIT_ENABLED_KEY, String(enabled));
-  window.localStorage.setItem(TIME_LIMIT_MINUTES_KEY, String(clampMinutes(limitMinutes)));
+  safeSet(TIME_LIMIT_ENABLED_KEY, String(enabled));
+  safeSet(TIME_LIMIT_MINUTES_KEY, String(clampMinutes(limitMinutes)));
 }
 
 export function getTimeState(): TimeState {
@@ -221,7 +213,7 @@ export function addExtraMinutes(minutes: number): void {
 
   resetIfNewDay();
   const nextExtra = readExtraMinutesToday() + increment;
-  window.localStorage.setItem(TIME_EXTRA_TODAY_MINUTES_KEY, String(nextExtra));
+  safeSet(TIME_EXTRA_TODAY_MINUTES_KEY, String(nextExtra));
 }
 
 export function resetTodayUsage(): void {
@@ -231,6 +223,6 @@ export function resetTodayUsage(): void {
 
   resetIfNewDay();
   writeUsedSeconds(0);
-  window.localStorage.setItem(TIME_EXTRA_TODAY_MINUTES_KEY, "0");
+  safeSet(TIME_EXTRA_TODAY_MINUTES_KEY, "0");
   writeLastTick(Date.now());
 }

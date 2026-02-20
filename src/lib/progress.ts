@@ -1,25 +1,25 @@
+import { safeGet, safeSet } from "./storageGuard";
+
 const STARS_TOTAL_KEY = "pp_stars_total";
 const STREAK_COUNT_KEY = "pp_streak_count";
 const LAST_PLAY_DATE_KEY = "pp_last_play_date";
 
 function readNumber(key: string): number {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-
-  const raw = window.localStorage.getItem(key);
+  const raw = safeGet(key, "0");
   const parsed = Number(raw ?? "0");
   if (!Number.isFinite(parsed) || parsed < 0) {
+    safeSet(key, "0");
     return 0;
   }
-  return Math.floor(parsed);
+  const normalized = Math.floor(parsed);
+  if (String(normalized) !== raw) {
+    safeSet(key, String(normalized));
+  }
+  return normalized;
 }
 
 function writeNumber(key: string, value: number): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(key, String(Math.max(0, Math.floor(value))));
+  safeSet(key, String(Math.max(0, Math.floor(value))));
 }
 
 function formatLocalDate(date: Date): string {
@@ -64,13 +64,50 @@ export function getStreak(): number {
   return readNumber(STREAK_COUNT_KEY);
 }
 
-export function markPlayedToday(): void {
+function isValidDayKey(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export function getLastPlayDate(): string | null {
+  const value = safeGet(LAST_PLAY_DATE_KEY, "");
+  if (!value) {
+    return null;
+  }
+  if (!isValidDayKey(value)) {
+    safeSet(LAST_PLAY_DATE_KEY, "");
+    return null;
+  }
+  return value;
+}
+
+export function ensureProgressDefaults(): void {
   if (typeof window === "undefined") {
     return;
   }
 
+  const stars = getStarsTotal();
+  const streak = getStreak();
+  const lastPlayDate = safeGet(LAST_PLAY_DATE_KEY, "");
+  const normalizedLastPlayDate = isValidDayKey(lastPlayDate) ? lastPlayDate : "";
+
+  safeSet(STARS_TOTAL_KEY, String(stars));
+  safeSet(STREAK_COUNT_KEY, String(streak));
+  safeSet(LAST_PLAY_DATE_KEY, normalizedLastPlayDate);
+}
+
+export function resetProgress(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  safeSet(STARS_TOTAL_KEY, "0");
+  safeSet(STREAK_COUNT_KEY, "0");
+  safeSet(LAST_PLAY_DATE_KEY, "");
+}
+
+export function markPlayedToday(): void {
   const today = getTodayKey();
-  const lastPlayDate = window.localStorage.getItem(LAST_PLAY_DATE_KEY);
+  const lastPlayDate = getLastPlayDate();
 
   if (lastPlayDate === today) {
     return;
@@ -81,7 +118,7 @@ export function markPlayedToday(): void {
   const nextStreak = lastPlayDate === yesterday ? previousStreak + 1 : 1;
 
   writeNumber(STREAK_COUNT_KEY, nextStreak);
-  window.localStorage.setItem(LAST_PLAY_DATE_KEY, today);
+  safeSet(LAST_PLAY_DATE_KEY, today);
 }
 
 export function getDailySeededItems<T>(items: T[], count: number, dateKey = getTodayKey()): T[] {

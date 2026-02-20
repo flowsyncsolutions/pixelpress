@@ -3,8 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAllGames } from "@/src/lib/games";
-import { getStarsTotal, getStreak } from "@/src/lib/progress";
+import { ensureProgressDefaults, getStarsTotal, getStreak } from "@/src/lib/progress";
+import { metricsGetAll } from "@/src/lib/metrics";
+import { resetIfNewDay } from "@/src/lib/timeLimit";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
+import { safeGet, safeSet } from "@/src/lib/storageGuard";
+import { startTrial } from "@/src/lib/trial";
 import {
   getPendingUnlockNotice,
   getUnlockedFeatures,
@@ -27,6 +31,22 @@ export default function Home() {
       return;
     }
 
+    const timer = window.setTimeout(() => {
+      resetIfNewDay();
+      ensureProgressDefaults();
+      startTrial();
+      metricsGetAll();
+      getUnlockedFeatures();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const syncProgress = () => {
       const totalStars = getStarsTotal();
       setStars(totalStars);
@@ -41,7 +61,7 @@ export default function Home() {
     };
 
     syncProgress();
-    const onboarded = window.localStorage.getItem(ONBOARDED_KEY) === "true";
+    const onboarded = safeGet(ONBOARDED_KEY, "false") === "true";
     setShowOnboardingPrompt(!onboarded);
     window.addEventListener("storage", syncProgress);
     return () => window.removeEventListener("storage", syncProgress);
@@ -56,9 +76,7 @@ export default function Home() {
   }, [unlockNotice]);
 
   const completeOnboardingPrompt = () => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(ONBOARDED_KEY, "true");
-    }
+    safeSet(ONBOARDED_KEY, "true");
     setShowOnboardingPrompt(false);
   };
 

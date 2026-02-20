@@ -1,3 +1,5 @@
+import { safeGet, safeSet } from "./storageGuard";
+
 const TRIAL_STARTED_AT_KEY = "pp_trial_started_at";
 const TRIAL_DAYS_KEY = "pp_trial_days";
 const TRIAL_OVERRIDE_UNLOCKED_KEY = "pp_trial_override_unlocked";
@@ -14,25 +16,22 @@ function readNumber(value: string | null, fallback: number): number {
 }
 
 function readTrialDays(): number {
-  if (typeof window === "undefined") {
-    return DEFAULT_TRIAL_DAYS;
+  const raw = safeGet(TRIAL_DAYS_KEY, String(DEFAULT_TRIAL_DAYS));
+  const normalized = Math.max(1, Math.floor(readNumber(raw, DEFAULT_TRIAL_DAYS)));
+  if (raw !== String(normalized)) {
+    safeSet(TRIAL_DAYS_KEY, String(normalized));
   }
-
-  return Math.max(1, Math.floor(readNumber(window.localStorage.getItem(TRIAL_DAYS_KEY), DEFAULT_TRIAL_DAYS)));
+  return normalized;
 }
 
 export function startTrial(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const existingStartedAt = window.localStorage.getItem(TRIAL_STARTED_AT_KEY);
+  const existingStartedAt = safeGet(TRIAL_STARTED_AT_KEY, "");
   if (!existingStartedAt) {
-    window.localStorage.setItem(TRIAL_STARTED_AT_KEY, String(Date.now()));
+    safeSet(TRIAL_STARTED_AT_KEY, String(Date.now()));
   }
 
-  if (!window.localStorage.getItem(TRIAL_DAYS_KEY)) {
-    window.localStorage.setItem(TRIAL_DAYS_KEY, String(DEFAULT_TRIAL_DAYS));
+  if (!safeGet(TRIAL_DAYS_KEY, "")) {
+    safeSet(TRIAL_DAYS_KEY, String(DEFAULT_TRIAL_DAYS));
   }
 }
 
@@ -53,7 +52,7 @@ export function getTrialStatus(): {
     };
   }
 
-  const startedAtRaw = window.localStorage.getItem(TRIAL_STARTED_AT_KEY);
+  const startedAtRaw = safeGet(TRIAL_STARTED_AT_KEY, "");
   if (!startedAtRaw) {
     return {
       isActive: false,
@@ -87,26 +86,26 @@ export function getTrialStatus(): {
 }
 
 export function isTrialOverrideUnlocked(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return window.localStorage.getItem(TRIAL_OVERRIDE_UNLOCKED_KEY) === "true";
+  return safeGet(TRIAL_OVERRIDE_UNLOCKED_KEY, "false") === "true";
 }
 
 export function setTrialOverrideUnlocked(unlocked: boolean): void {
+  safeSet(TRIAL_OVERRIDE_UNLOCKED_KEY, String(unlocked));
+}
+
+function safeRemove(key: string): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(TRIAL_OVERRIDE_UNLOCKED_KEY, String(unlocked));
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Intentionally ignored.
+  }
 }
 
 export function resetTrial(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(TRIAL_STARTED_AT_KEY);
-  window.localStorage.removeItem(TRIAL_DAYS_KEY);
+  safeRemove(TRIAL_STARTED_AT_KEY);
+  safeRemove(TRIAL_DAYS_KEY);
 }
