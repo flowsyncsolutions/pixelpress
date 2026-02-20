@@ -9,6 +9,7 @@ import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 import { getUnlockedFeatures } from "@/src/lib/unlocks";
+import { getMemoryMatchTheme } from "@/src/lib/variants";
 
 type Difficulty = "easy" | "normal" | "hard";
 type GameState = "ready" | "playing" | "won";
@@ -20,7 +21,7 @@ type Card = {
   isMatched: boolean;
 };
 
-const CARD_VALUES: Record<Difficulty, string[]> = {
+const DEFAULT_CARD_VALUES: Record<Difficulty, string[]> = {
   easy: ["🚀", "🌙", "⭐", "🪐", "☄️", "👽"],
   normal: ["🚀", "🌙", "⭐", "🪐", "☄️", "👽", "🛰️", "🌌"],
   hard: [
@@ -62,8 +63,22 @@ function fisherYatesShuffle<T>(items: T[]): T[] {
   return shuffled;
 }
 
-function buildDeck(difficulty: Difficulty): Card[] {
-  const cards = CARD_VALUES[difficulty].flatMap((value, pairIndex) => [
+function getCardValuesForTheme(themeId?: string): Record<Difficulty, string[]> {
+  const theme = getMemoryMatchTheme(themeId);
+  if (!theme) {
+    return DEFAULT_CARD_VALUES;
+  }
+
+  const merged = Array.from(new Set([...theme.emojis, ...DEFAULT_CARD_VALUES.hard]));
+  const hard = merged.slice(0, DEFAULT_CARD_VALUES.hard.length);
+  const normal = hard.slice(0, DEFAULT_CARD_VALUES.normal.length);
+  const easy = hard.slice(0, DEFAULT_CARD_VALUES.easy.length);
+
+  return { easy, normal, hard };
+}
+
+function buildDeck(difficulty: Difficulty, cardValues: Record<Difficulty, string[]>): Card[] {
+  const cards = cardValues[difficulty].flatMap((value, pairIndex) => [
     {
       id: `${difficulty}-${value}-${pairIndex}-a`,
       value,
@@ -94,13 +109,18 @@ function parseStoredBest(raw: string | null): number | null {
 
 type MemoryMatchProps = {
   onComplete?: (payload?: { best?: number }) => void;
+  params?: { themeId?: string };
 };
 
-export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
+export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
   const router = useRouter();
 
+  const cardValues = useMemo(() => getCardValuesForTheme(params?.themeId), [params?.themeId]);
+
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
-  const [cards, setCards] = useState<Card[]>(() => buildDeck("easy"));
+  const [cards, setCards] = useState<Card[]>(() =>
+    buildDeck("easy", getCardValuesForTheme(params?.themeId)),
+  );
   const [flippedIndexes, setFlippedIndexes] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
   const [matches, setMatches] = useState(0);
@@ -126,7 +146,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
   const confettiTimerRef = useRef<number | null>(null);
   const hasAwardedWinRef = useRef(false);
 
-  const totalPairs = CARD_VALUES[difficulty].length;
+  const totalPairs = cardValues[difficulty].length;
   const currentBest = bestMoves[difficulty];
   const gridClass =
     difficulty === "easy"
@@ -172,7 +192,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
       clearFlipBackTimer();
       clearConfettiTimer();
 
-      const nextDeck = buildDeck(nextDifficulty);
+      const nextDeck = buildDeck(nextDifficulty, cardValues);
       cardsRef.current = nextDeck;
       flippedIndexesRef.current = [];
       movesRef.current = 0;
@@ -189,7 +209,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
       setShowConfetti(false);
       hasAwardedWinRef.current = false;
     },
-    [clearConfettiTimer, clearFlipBackTimer],
+    [cardValues, clearConfettiTimer, clearFlipBackTimer],
   );
 
   const saveBestIfNeeded = useCallback((mode: Difficulty, finalMoves: number) => {
@@ -292,7 +312,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
       matchesRef.current = nextMatchCount;
       setMatches(nextMatchCount);
 
-      if (nextMatchCount === CARD_VALUES[difficultyRef.current].length) {
+      if (nextMatchCount === cardValues[difficultyRef.current].length) {
         gameStateRef.current = "won";
         lockBoardRef.current = true;
         setGameState("won");
@@ -358,6 +378,12 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
       window.removeEventListener("storage", syncUnlockState);
     };
   }, [syncUnlockState]);
+
+  useEffect(() => {
+    difficultyRef.current = "easy";
+    setDifficulty("easy");
+    resetBoard("easy");
+  }, [cardValues, resetBoard]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

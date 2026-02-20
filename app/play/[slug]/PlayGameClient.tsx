@@ -131,9 +131,21 @@ export default function PlayGameClient({ game }: PlayGameClientProps) {
           {game.internalEngine === "tictactoe" ? (
             <TicTacToe onComplete={handleComplete} />
           ) : game.internalEngine === "spaceRunner" ? (
-            <SpaceRunner onComplete={handleComplete} />
+            <SpaceRunner
+              onComplete={handleComplete}
+              params={{
+                modeId:
+                  typeof game.params?.modeId === "string" ? game.params.modeId : undefined,
+              }}
+            />
           ) : game.internalEngine === "memoryMatch" ? (
-            <MemoryMatch onComplete={handleComplete} />
+            <MemoryMatch
+              onComplete={handleComplete}
+              params={{
+                themeId:
+                  typeof game.params?.themeId === "string" ? game.params.themeId : undefined,
+              }}
+            />
           ) : game.internalEngine === "reactionTap" ? (
             <ReactionTap onComplete={handleComplete} />
           ) : (

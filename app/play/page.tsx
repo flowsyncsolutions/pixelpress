@@ -30,6 +30,23 @@ const CATEGORY_META: Record<
   puzzles: { label: "Puzzles", icon: "🧩", accent: "cyan" },
 };
 
+function getVariantBadgeText(game: {
+  variantOf?: string;
+  variantLabel?: string;
+}): string | null {
+  if (!game.variantOf || !game.variantLabel) {
+    return null;
+  }
+
+  if (game.variantOf === "memory-match") {
+    return `Theme: ${game.variantLabel}`;
+  }
+  if (game.variantOf === "space-runner") {
+    return `Mode: ${game.variantLabel}`;
+  }
+  return `Variant: ${game.variantLabel}`;
+}
+
 export default function PlayPage() {
   const [selectedCategory, setSelectedCategory] = useState<GameCategory | "all">("all");
   const [stars, setStars] = useState(0);
@@ -205,6 +222,7 @@ export default function PlayPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {dailyPicks.map((game) => {
             const accent = ACCENT_STYLES[game.accent];
+            const variantBadge = getVariantBadgeText(game);
             return (
               <Link
                 key={game.slug}
@@ -225,9 +243,16 @@ export default function PlayPage() {
                   <p className="text-lg font-semibold text-white">{game.title}</p>
                   <p className="text-sm text-slate-300">{game.description}</p>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className={`${THEME.surfaces.pill} text-slate-100`}>
-                      {CATEGORY_META[game.category].icon} {CATEGORY_META[game.category].label}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`${THEME.surfaces.pill} text-slate-100`}>
+                        {CATEGORY_META[game.category].icon} {CATEGORY_META[game.category].label}
+                      </span>
+                      {variantBadge ? (
+                        <span className={`${THEME.surfaces.pill} border-cyan-200/45 bg-cyan-300/12 text-cyan-100`}>
+                          {variantBadge}
+                        </span>
+                      ) : null}
+                    </div>
                     <span className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${accent.button}`}>
                       Play
                     </span>
@@ -283,6 +308,7 @@ export default function PlayPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {games.map((game) => {
             const accent = ACCENT_STYLES[game.accent];
+            const variantBadge = getVariantBadgeText(game);
 
             return (
               <Link
@@ -310,9 +336,16 @@ export default function PlayPage() {
                       </div>
                       <div>
                         <p className="text-lg font-semibold text-white">{game.title}</p>
-                        <span className={`${THEME.surfaces.pill} mt-1 inline-flex text-slate-100`}>
-                          {CATEGORY_META[game.category].icon} {CATEGORY_META[game.category].label}
-                        </span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          <span className={`${THEME.surfaces.pill} inline-flex text-slate-100`}>
+                            {CATEGORY_META[game.category].icon} {CATEGORY_META[game.category].label}
+                          </span>
+                          {variantBadge ? (
+                            <span className={`${THEME.surfaces.pill} border-cyan-200/45 bg-cyan-300/12 text-cyan-100`}>
+                              {variantBadge}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                     <span

@@ -1,4 +1,5 @@
 import type { AccentTone } from "./theme";
+import { MEMORY_MATCH_THEMES, SPACE_RUNNER_MODES } from "./variants";
 
 export const CATEGORIES = ["kids", "classics", "educational", "puzzles"] as const;
 
@@ -18,6 +19,10 @@ export type Game = {
   embedType: "internal" | "iframe";
   internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch" | "reactionTap";
   embedSrc?: string;
+  variantOf?: string;
+  variantId?: string;
+  variantLabel?: string;
+  params?: Record<string, any>;
 };
 
 export const ALLOWED_IFRAME_HOSTS: string[] = [];
@@ -25,7 +30,7 @@ export const ALLOWED_IFRAME_HOSTS: string[] = [];
 // To add a real game cover image:
 // 1) drop `public/covers/{slug}.png`
 // 2) set `cover: "/covers/{slug}.png"` on that game entry below.
-export const GAMES: Game[] = [
+const BASE_GAMES: Game[] = [
   {
     slug: "space-runner",
     title: "Space Runner",
@@ -80,6 +85,45 @@ export const GAMES: Game[] = [
     embedType: "internal",
     internalEngine: "tictactoe",
   },
+];
+
+const MEMORY_MATCH_VARIANTS: Game[] = MEMORY_MATCH_THEMES.map((theme) => ({
+  slug: `memory-match-${theme.id}`,
+  title: `Memory Match: ${theme.label}`,
+  icon: "🧠",
+  accent: "violet",
+  featured: false,
+  description: `Match pairs with the ${theme.label} theme.`,
+  tags: ["kids", "memory", "variant"],
+  category: "kids",
+  status: "live",
+  embedType: "internal",
+  internalEngine: "memoryMatch",
+  variantOf: "memory-match",
+  variantId: theme.id,
+  variantLabel: theme.label,
+  params: { themeId: theme.id },
+}));
+
+const SPACE_RUNNER_VARIANTS: Game[] = SPACE_RUNNER_MODES.map((mode) => ({
+  slug: `space-runner-${mode.id}`,
+  title: `Space Runner: ${mode.label}`,
+  icon: "🚀",
+  accent: "cyan",
+  featured: false,
+  description: `Dodge asteroids in ${mode.label.toLowerCase()} mode.`,
+  tags: ["kids", "runner", "space", "variant"],
+  category: "kids",
+  status: "live",
+  embedType: "internal",
+  internalEngine: "spaceRunner",
+  variantOf: "space-runner",
+  variantId: mode.id,
+  variantLabel: mode.label,
+  params: { modeId: mode.id },
+}));
+
+const COMING_SOON_GAMES: Game[] = [
   {
     slug: "bubble-pop",
     title: "Bubble Pop",
@@ -188,6 +232,13 @@ export const GAMES: Game[] = [
     status: "coming_soon",
     embedType: "internal",
   },
+];
+
+export const GAMES: Game[] = [
+  ...BASE_GAMES,
+  ...MEMORY_MATCH_VARIANTS,
+  ...SPACE_RUNNER_VARIANTS,
+  ...COMING_SOON_GAMES,
 ];
 
 export function getAllGames(): Game[] {

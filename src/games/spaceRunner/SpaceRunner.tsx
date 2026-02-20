@@ -18,6 +18,7 @@ import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 import { getUnlockedFeatures } from "@/src/lib/unlocks";
+import { getSpaceRunnerMode } from "@/src/lib/variants";
 
 type RunnerState = "ready" | "playing" | "crashing" | "game_over";
 type ObstacleVariant = "small" | "big";
@@ -87,10 +88,17 @@ function hasOverlap(a: Box, b: Box): boolean {
 
 type SpaceRunnerProps = {
   onComplete?: (payload?: { best?: number }) => void;
+  params?: { modeId?: string };
 };
 
-export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
+export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
   const router = useRouter();
+  const modeConfig = useMemo(() => getSpaceRunnerMode(params?.modeId), [params?.modeId]);
+  const modeBaseSpeed = Math.round(BASE_SPEED * modeConfig.speedMult);
+  const modeMaxSpeed = Math.round(MAX_SPEED * modeConfig.speedMult);
+  const modeSpeedPerLevel = SPEED_PER_LEVEL * modeConfig.speedMult;
+  const modeGravity = GRAVITY * modeConfig.gravityMult;
+  const modeSpawnMult = Math.max(0.5, modeConfig.spawnMult);
 
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const arenaHeightRef = useRef(DEFAULT_ARENA_HEIGHT);
@@ -102,8 +110,8 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
   const obstaclesRef = useRef<Obstacle[]>([]);
   const spawnTimerRef = useRef(0);
   const nextSpawnMsRef = useRef(980);
-  const speedRef = useRef(BASE_SPEED);
-  const speedDisplayRef = useRef(BASE_SPEED);
+  const speedRef = useRef(modeBaseSpeed);
+  const speedDisplayRef = useRef(modeBaseSpeed);
   const levelRef = useRef(1);
   const survivedSecondsRef = useRef(0);
   const scoreFloatRef = useRef(0);
@@ -130,7 +138,7 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
   const [scorePopping, setScorePopping] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [level, setLevel] = useState(1);
-  const [speedDisplay, setSpeedDisplay] = useState(BASE_SPEED);
+  const [speedDisplay, setSpeedDisplay] = useState(modeBaseSpeed);
   const [hasNewBest, setHasNewBest] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [showCrashFlash, setShowCrashFlash] = useState(false);
@@ -237,10 +245,10 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
     obstaclesRef.current = [];
     obstacleIdRef.current = 0;
     spawnTimerRef.current = 0;
-    nextSpawnMsRef.current = 900 + Math.random() * 350;
+    nextSpawnMsRef.current = (900 + Math.random() * 350) / modeSpawnMult;
 
-    speedRef.current = BASE_SPEED;
-    speedDisplayRef.current = BASE_SPEED;
+    speedRef.current = modeBaseSpeed;
+    speedDisplayRef.current = modeBaseSpeed;
     levelRef.current = 1;
     survivedSecondsRef.current = 0;
 
@@ -268,9 +276,9 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
     setScore(0);
     setScorePopping(false);
     setLevel(1);
-    setSpeedDisplay(BASE_SPEED);
+    setSpeedDisplay(modeBaseSpeed);
     setHasNewBest(false);
-  }, [clearConfettiTimer, clearCrashTimers, getPlayerGroundY]);
+  }, [clearConfettiTimer, clearCrashTimers, getPlayerGroundY, modeBaseSpeed, modeSpawnMult]);
 
   const finishRound = useCallback(() => {
     gameStateRef.current = "game_over";
@@ -342,7 +350,7 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
       const groundTop = arenaHeightRef.current - GROUND_HEIGHT;
       const groundY = groundTop - PLAYER_SIZE;
 
-      playerVelocityRef.current += GRAVITY * delta;
+      playerVelocityRef.current += modeGravity * delta;
       playerYRef.current += playerVelocityRef.current * delta;
       if (playerYRef.current > groundY) {
         playerYRef.current = groundY;
@@ -357,7 +365,10 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
       }
 
       const levelProgress = (survivedSecondsRef.current % LEVEL_INTERVAL_SECONDS) / LEVEL_INTERVAL_SECONDS;
-      const targetSpeed = Math.min(MAX_SPEED, BASE_SPEED + (nextLevel - 1 + levelProgress) * SPEED_PER_LEVEL);
+      const targetSpeed = Math.min(
+        modeMaxSpeed,
+        modeBaseSpeed + (nextLevel - 1 + levelProgress) * modeSpeedPerLevel,
+      );
       speedRef.current += (targetSpeed - speedRef.current) * Math.min(1, delta * SPEED_BLEND_FACTOR);
 
       const roundedSpeed = Math.round(speedRef.current);
@@ -390,8 +401,9 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
           icon: isBig ? "🪨" : "☄️",
         });
 
-        const speedOffset = (speedRef.current - BASE_SPEED) * 1.35;
-        nextSpawnMsRef.current = Math.max(560, 1040 + Math.random() * 420 - speedOffset);
+        const speedOffset = (speedRef.current - modeBaseSpeed) * 1.35;
+        const baseSpawn = 1040 + Math.random() * 420 - speedOffset;
+        nextSpawnMsRef.current = Math.max(420, baseSpawn / modeSpawnMult);
       }
 
       trailSpawnTimerRef.current += delta;
@@ -474,7 +486,15 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
       syncRenderableState();
       rafRef.current = window.requestAnimationFrame(tick);
     },
-    [syncRenderableState, triggerCrash],
+    [
+      modeBaseSpeed,
+      modeGravity,
+      modeMaxSpeed,
+      modeSpawnMult,
+      modeSpeedPerLevel,
+      syncRenderableState,
+      triggerCrash,
+    ],
   );
 
   const startRound = useCallback(() => {
@@ -699,6 +719,9 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
                 <strong className="inline-block min-w-[4ch] text-right font-black tabular-nums text-cyan-100">
                   Lv {rocketSkinLevel}
                 </strong>
+              </span>
+              <span className={arcade.chip}>
+                Mode: <strong className="font-black text-cyan-100">{modeConfig.label}</strong>
               </span>
               <span className={`${arcade.chip} ${highChipClass}`}>
                 High:{" "}
