@@ -17,6 +17,7 @@ import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
+import { getUnlockedFeatures } from "@/src/lib/unlocks";
 
 type RunnerState = "ready" | "playing" | "crashing" | "game_over";
 type ObstacleVariant = "small" | "big";
@@ -135,6 +136,7 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
   const [showCrashFlash, setShowCrashFlash] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [rocketSkinLevel, setRocketSkinLevel] = useState(1);
 
   const statusText = useMemo(() => {
     if (gameState === "ready") {
@@ -148,6 +150,47 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
     }
     return "You got this";
   }, [gameState]);
+
+  const rocketVisual = useMemo(() => {
+    if (rocketSkinLevel >= 3) {
+      return {
+        frameClass:
+          "border-amber-200/55 bg-violet-300/25 shadow-[0_10px_24px_rgba(250,204,21,0.3)]",
+        iconClass: "text-4xl leading-none drop-shadow-[0_0_14px_rgba(250,204,21,0.75)]",
+        scale: 1.1,
+        trailColor: "rgba(250, 204, 21, 0.95)",
+        trailShadow: "0 0 14px rgba(250, 204, 21, 0.62)",
+        trailOpacity: 1,
+      };
+    }
+
+    if (rocketSkinLevel >= 2) {
+      return {
+        frameClass:
+          "border-emerald-200/55 bg-emerald-300/25 shadow-[0_10px_22px_rgba(52,211,153,0.32)]",
+        iconClass: "text-3xl leading-none drop-shadow-[0_0_12px_rgba(74,222,128,0.78)]",
+        scale: 1,
+        trailColor: "rgba(167, 243, 208, 0.92)",
+        trailShadow: "0 0 12px rgba(52, 211, 153, 0.65)",
+        trailOpacity: 0.95,
+      };
+    }
+
+    return {
+      frameClass:
+        "border-cyan-200/40 bg-cyan-300/20 shadow-[0_10px_20px_rgba(34,211,238,0.35)]",
+      iconClass: "text-3xl leading-none drop-shadow-[0_0_12px_rgba(103,232,249,0.75)]",
+      scale: 1,
+      trailColor: "rgba(165, 243, 252, 0.58)",
+      trailShadow: "0 0 8px rgba(103, 232, 249, 0.28)",
+      trailOpacity: 0.72,
+    };
+  }, [rocketSkinLevel]);
+
+  const syncRocketSkinLevel = useCallback(() => {
+    const unlocked = getUnlockedFeatures();
+    setRocketSkinLevel(unlocked.rocketSkinLevel);
+  }, []);
 
   const clearConfettiTimer = useCallback(() => {
     if (confettiTimerRef.current !== null) {
@@ -438,12 +481,13 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
     stopLoop();
     clearCrashTimers();
     resetRound();
+    syncRocketSkinLevel();
 
     roundStartHighScoreRef.current = highScoreRef.current;
     gameStateRef.current = "playing";
     setGameState("playing");
     rafRef.current = window.requestAnimationFrame(tick);
-  }, [clearCrashTimers, resetRound, stopLoop, tick]);
+  }, [clearCrashTimers, resetRound, stopLoop, syncRocketSkinLevel, tick]);
 
   const triggerJump = useCallback(() => {
     if (gameStateRef.current === "game_over" || gameStateRef.current === "crashing") {
@@ -507,8 +551,9 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
 
     addStars(1);
     markPlayedToday();
+    syncRocketSkinLevel();
     hasAwardedRoundRef.current = true;
-  }, [gameState, score]);
+  }, [gameState, score, syncRocketSkinLevel]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -539,6 +584,23 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
     resetIfNewDay();
     return startSessionTick();
   }, [gameState, isTimeUp]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncUnlockState = () => {
+      syncRocketSkinLevel();
+    };
+
+    syncUnlockState();
+    window.addEventListener("storage", syncUnlockState);
+
+    return () => {
+      window.removeEventListener("storage", syncUnlockState);
+    };
+  }, [syncRocketSkinLevel]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -624,6 +686,9 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
               <span className={arcade.chip}>
                 Speed: <strong className="font-black text-cyan-100">{speedDisplay}</strong>
               </span>
+              <span className={arcade.chip}>
+                Skin: <strong className="font-black text-cyan-100">Lv {rocketSkinLevel}</strong>
+              </span>
               <span className={`${arcade.chip} ${highChipClass}`}>
                 High: <strong className={`font-black ${hasNewBest ? "text-amber-100" : "text-cyan-100"}`}>{Math.max(highScore, score)}</strong>
                 {hasNewBest ? <span className="pp-new-best-tag">New Best!</span> : null}
@@ -670,15 +735,16 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
             {trailParticles.map((particle) => (
               <div
                 key={particle.id}
-                className="pointer-events-none absolute z-[19] rounded-full bg-cyan-200/80"
+                className="pointer-events-none absolute z-[19] rounded-full"
                 style={{
                   left: `${particle.x}px`,
                   top: `${particle.y}px`,
                   width: `${particle.size}px`,
                   height: `${particle.size}px`,
-                  opacity: particle.opacity,
+                  opacity: particle.opacity * rocketVisual.trailOpacity,
                   transform: "translate(-50%, -50%)",
-                  boxShadow: "0 0 10px rgba(103,232,249,0.55)",
+                  background: rocketVisual.trailColor,
+                  boxShadow: rocketVisual.trailShadow,
                 }}
               />
             ))}
@@ -702,16 +768,16 @@ export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
             ))}
 
             <div
-              className="absolute z-30 flex items-center justify-center rounded-2xl border border-cyan-200/40 bg-cyan-300/20 shadow-[0_10px_20px_rgba(34,211,238,0.35)] transition-transform duration-100"
+              className={`absolute z-30 flex items-center justify-center rounded-2xl border transition-transform duration-100 ${rocketVisual.frameClass}`}
               style={{
                 left: `${PLAYER_X}px`,
                 top: `${playerY}px`,
                 width: `${PLAYER_SIZE}px`,
                 height: `${PLAYER_SIZE}px`,
-                transform: `rotate(${playerTilt}deg)`,
+                transform: `scale(${rocketVisual.scale}) rotate(${playerTilt}deg)`,
               }}
             >
-              <span className="select-none text-3xl leading-none drop-shadow-[0_0_12px_rgba(103,232,249,0.75)]">🚀</span>
+              <span className={`select-none ${rocketVisual.iconClass}`}>🚀</span>
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 z-10 h-14 border-t border-cyan-100/25 bg-gradient-to-r from-indigo-800/55 via-slate-900/85 to-violet-800/55">

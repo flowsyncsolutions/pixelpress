@@ -8,6 +8,7 @@ import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
+import { getUnlockedFeatures } from "@/src/lib/unlocks";
 
 type Difficulty = "easy" | "normal" | "hard";
 type GameState = "ready" | "playing" | "won";
@@ -107,6 +108,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
   const [lockBoard, setLockBoard] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
+  const [memoryHardUnlocked, setMemoryHardUnlocked] = useState(false);
   const [bestMoves, setBestMoves] = useState<Record<Difficulty, number | null>>({
     easy: null,
     normal: null,
@@ -211,7 +213,16 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
     });
   }, []);
 
+  const syncUnlockState = useCallback(() => {
+    const unlocked = getUnlockedFeatures();
+    setMemoryHardUnlocked(unlocked.memoryHardUnlocked);
+  }, []);
+
   const handleDifficultyChange = (nextDifficulty: Difficulty) => {
+    if (nextDifficulty === "normal" && !memoryHardUnlocked) {
+      return;
+    }
+
     if (nextDifficulty === difficultyRef.current) {
       return;
     }
@@ -297,6 +308,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
         if (!hasAwardedWinRef.current) {
           addStars(1);
           markPlayedToday();
+          syncUnlockState();
           hasAwardedWinRef.current = true;
         }
 
@@ -334,12 +346,18 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
       return;
     }
 
+    syncUnlockState();
+    window.addEventListener("storage", syncUnlockState);
+
     setBestMoves({
       easy: parseStoredBest(window.localStorage.getItem(BEST_KEYS.easy)),
       normal: parseStoredBest(window.localStorage.getItem(BEST_KEYS.normal)),
       hard: parseStoredBest(window.localStorage.getItem(BEST_KEYS.hard)),
     });
-  }, []);
+    return () => {
+      window.removeEventListener("storage", syncUnlockState);
+    };
+  }, [syncUnlockState]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -423,13 +441,24 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
                 type="button"
                 onClick={() => handleDifficultyChange("normal")}
                 aria-pressed={difficulty === "normal"}
+                disabled={!memoryHardUnlocked}
+                title={!memoryHardUnlocked ? "Unlock at 10 stars" : undefined}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  difficulty === "normal"
+                  difficulty === "normal" && memoryHardUnlocked
                     ? "bg-violet-400 text-violet-50 shadow-[0_0_12px_rgba(167,139,250,0.45)]"
-                    : "text-slate-200 hover:bg-slate-800"
+                    : memoryHardUnlocked
+                      ? "text-slate-200 hover:bg-slate-800"
+                      : "cursor-not-allowed text-slate-500"
                 }`}
               >
-                Normal
+                <span className="inline-flex items-center gap-1.5">
+                  <span>Normal</span>
+                  {!memoryHardUnlocked ? (
+                    <span aria-hidden="true" className="text-xs text-amber-300">
+                      🔒
+                    </span>
+                  ) : null}
+                </span>
               </button>
               <button
                 type="button"

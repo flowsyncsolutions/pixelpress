@@ -5,6 +5,12 @@ import Link from "next/link";
 import { getAllGames } from "@/src/lib/games";
 import { getStarsTotal, getStreak } from "@/src/lib/progress";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
+import {
+  getPendingUnlockNotice,
+  getUnlockedFeatures,
+  markUnlockNoticeSeen,
+  type UnlockNotice,
+} from "@/src/lib/unlocks";
 
 const ONBOARDED_KEY = "pp_onboarded";
 
@@ -13,6 +19,8 @@ export default function Home() {
   const [stars, setStars] = useState(0);
   const [streak, setStreak] = useState(0);
   const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
+  const [showChallengeBadge, setShowChallengeBadge] = useState(false);
+  const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -20,8 +28,16 @@ export default function Home() {
     }
 
     const syncProgress = () => {
-      setStars(getStarsTotal());
+      const totalStars = getStarsTotal();
+      setStars(totalStars);
       setStreak(getStreak());
+      setShowChallengeBadge(getUnlockedFeatures().challengeBadgeUnlocked);
+
+      const notice = getPendingUnlockNotice(totalStars);
+      if (notice) {
+        setUnlockNotice(notice);
+        markUnlockNoticeSeen(notice.threshold);
+      }
     };
 
     syncProgress();
@@ -30,6 +46,14 @@ export default function Home() {
     window.addEventListener("storage", syncProgress);
     return () => window.removeEventListener("storage", syncProgress);
   }, []);
+
+  useEffect(() => {
+    if (!unlockNotice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setUnlockNotice(null), 2300);
+    return () => window.clearTimeout(timer);
+  }, [unlockNotice]);
 
   const completeOnboardingPrompt = () => {
     if (typeof window !== "undefined") {
@@ -40,6 +64,15 @@ export default function Home() {
 
   return (
     <section className="min-h-[calc(100vh-8rem)] py-8 sm:py-12">
+      {unlockNotice ? (
+        <div className="pointer-events-none fixed left-1/2 top-20 z-50 w-[min(92vw,420px)] -translate-x-1/2">
+          <div className="rounded-2xl border border-amber-200/50 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-200">{unlockNotice.title}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-100">{unlockNotice.description}</p>
+          </div>
+        </div>
+      ) : null}
+
       {showOnboardingPrompt ? (
         <div className={`${THEME.surfaces.card} mb-5 border-violet-200/20 bg-violet-500/10 p-4`}>
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -124,7 +157,14 @@ export default function Home() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-amber-200/30 bg-amber-300/10 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-100/85">Stars</p>
-                <p className="mt-1 text-3xl font-black text-amber-100">{stars}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="text-3xl font-black text-amber-100">{stars}</p>
+                  {showChallengeBadge ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-300/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-amber-100">
+                      🏅 Arcade Challenger
+                    </span>
+                  ) : null}
+                </div>
               </div>
               <div className="rounded-xl border border-cyan-200/30 bg-cyan-300/10 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/85">Streak</p>

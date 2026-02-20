@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ExitGate from "@/src/components/ExitGate";
 import GameCover from "@/src/components/GameCover";
@@ -12,6 +12,12 @@ import { getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progres
 import { getTimeState } from "@/src/lib/timeLimit";
 import { getTrialStatus, startTrial } from "@/src/lib/trial";
 import { ACCENT_STYLES, THEME, type AccentTone } from "@/src/lib/theme";
+import {
+  getPendingUnlockNotice,
+  getUnlockedFeatures,
+  markUnlockNoticeSeen,
+  type UnlockNotice,
+} from "@/src/lib/unlocks";
 
 const CATEGORY_META: Record<
   GameCategory | "all",
@@ -32,6 +38,9 @@ export default function PlayPage() {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [trialDaysRemaining, setTrialDaysRemaining] = useState(14);
   const [trialExpired, setTrialExpired] = useState(false);
+  const [showChallengeBadge, setShowChallengeBadge] = useState(false);
+  const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
+  const lastStarsSeenRef = useRef<number | null>(null);
 
   const allGames = useMemo(() => getAllGames(), []);
 
@@ -79,8 +88,21 @@ export default function PlayPage() {
 
     const syncProgress = () => {
       startTrial();
-      setStars(getStarsTotal());
+      const totalStars = getStarsTotal();
+      const starsChanged = lastStarsSeenRef.current === null || totalStars !== lastStarsSeenRef.current;
+      lastStarsSeenRef.current = totalStars;
+
+      setStars(totalStars);
       setStreak(getStreak());
+      setShowChallengeBadge(getUnlockedFeatures().challengeBadgeUnlocked);
+
+      if (starsChanged) {
+        const notice = getPendingUnlockNotice(totalStars);
+        if (notice) {
+          setUnlockNotice(notice);
+          markUnlockNoticeSeen(notice.threshold);
+        }
+      }
 
       const trial = getTrialStatus();
       setTrialDaysRemaining(trial.daysRemaining);
@@ -100,8 +122,25 @@ export default function PlayPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!unlockNotice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setUnlockNotice(null), 2300);
+    return () => window.clearTimeout(timer);
+  }, [unlockNotice]);
+
   return (
     <section className="space-y-5 pb-5">
+      {unlockNotice ? (
+        <div className="pointer-events-none fixed left-1/2 top-20 z-50 w-[min(92vw,420px)] -translate-x-1/2">
+          <div className="rounded-2xl border border-amber-200/50 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-200">{unlockNotice.title}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-100">{unlockNotice.description}</p>
+          </div>
+        </div>
+      ) : null}
+
       <PlaySoftGate />
       <ExitGate />
 
@@ -114,6 +153,11 @@ export default function PlayPage() {
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-2 rounded-xl border border-amber-200/30 bg-amber-300/10 px-3 py-2 text-sm font-semibold text-amber-100">
               ⭐ Stars: {stars}
+              {showChallengeBadge ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-300/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-100">
+                  🏅 Arcade Challenger
+                </span>
+              ) : null}
             </span>
             <span className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/30 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100">
               🔥 Streak: {streak}
