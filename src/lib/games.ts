@@ -16,7 +16,7 @@ export type Game = {
   category: GameCategory;
   status: "live" | "coming_soon";
   embedType: "internal" | "iframe";
-  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch";
+  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch" | "reactionTap";
   embedSrc?: string;
 };
 
@@ -75,6 +75,19 @@ export const GAMES: Game[] = [
     status: "live",
     embedType: "internal",
     internalEngine: "spaceRunner",
+  },
+  {
+    slug: "reaction-tap",
+    title: "Reaction Tap",
+    icon: "⚡",
+    accent: "amber",
+    featured: true,
+    description: "Wait for green, then tap fast.",
+    tags: ["kids", "reaction", "arcade"],
+    category: "kids",
+    status: "live",
+    embedType: "internal",
+    internalEngine: "reactionTap",
   },
   {
     slug: "color-runner-jr",
