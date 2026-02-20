@@ -84,7 +84,11 @@ function hasOverlap(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
-export default function SpaceRunner() {
+type SpaceRunnerProps = {
+  onComplete?: (payload?: { best?: number }) => void;
+};
+
+export default function SpaceRunner({ onComplete }: SpaceRunnerProps) {
   const router = useRouter();
 
   const arenaRef = useRef<HTMLDivElement | null>(null);
@@ -248,7 +252,9 @@ export default function SpaceRunner() {
         confettiTimerRef.current = null;
       }, 900);
     }
-  }, [clearConfettiTimer]);
+
+    onComplete?.({ best: finalScore });
+  }, [clearConfettiTimer, onComplete]);
 
   const triggerCrash = useCallback(() => {
     if (gameStateRef.current !== "playing") {

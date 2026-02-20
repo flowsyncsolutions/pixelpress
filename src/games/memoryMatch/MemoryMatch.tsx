@@ -91,7 +91,11 @@ function parseStoredBest(raw: string | null): number | null {
   return Math.floor(parsed);
 }
 
-export default function MemoryMatch() {
+type MemoryMatchProps = {
+  onComplete?: (payload?: { best?: number }) => void;
+};
+
+export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
   const router = useRouter();
 
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
@@ -297,6 +301,7 @@ export default function MemoryMatch() {
         }
 
         saveBestIfNeeded(difficultyRef.current, nextMoveCount);
+        onComplete?.();
       }
 
       return;

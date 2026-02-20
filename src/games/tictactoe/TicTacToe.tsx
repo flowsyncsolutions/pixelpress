@@ -125,7 +125,11 @@ function ThinkingDots() {
   );
 }
 
-export default function TicTacToe() {
+type TicTacToeProps = {
+  onComplete?: (payload?: { best?: number }) => void;
+};
+
+export default function TicTacToe({ onComplete }: TicTacToeProps) {
   const router = useRouter();
   const [board, setBoard] = useState<Board>(INITIAL_BOARD);
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
@@ -136,6 +140,7 @@ export default function TicTacToe() {
 
   const confettiTimerRef = useRef<number | null>(null);
   const hasAwardedWinRef = useRef(false);
+  const hasReportedWinRef = useRef(false);
 
   const aiMark = useMemo(() => getOpponent(playerMark), [playerMark]);
   const winnerData = useMemo(() => calculateWinner(board), [board]);
@@ -223,6 +228,15 @@ export default function TicTacToe() {
   }, [winnerData.winner, playerMark]);
 
   useEffect(() => {
+    if (winnerData.winner !== playerMark || hasReportedWinRef.current) {
+      return;
+    }
+
+    hasReportedWinRef.current = true;
+    onComplete?.();
+  }, [onComplete, playerMark, winnerData.winner]);
+
+  useEffect(() => {
     if (winnerData.winner !== playerMark || hasAwardedWinRef.current) {
       return;
     }
@@ -293,6 +307,7 @@ export default function TicTacToe() {
     setShowConfetti(false);
     setDifficulty("easy");
     hasAwardedWinRef.current = false;
+    hasReportedWinRef.current = false;
   };
 
   const handleSwapSides = () => {
@@ -301,6 +316,7 @@ export default function TicTacToe() {
     setIsAiThinking(false);
     setShowConfetti(false);
     hasAwardedWinRef.current = false;
+    hasReportedWinRef.current = false;
   };
 
   return (

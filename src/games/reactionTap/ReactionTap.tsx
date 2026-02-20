@@ -27,7 +27,11 @@ function parseBest(raw: string | null): number | null {
   return Math.floor(parsed);
 }
 
-export default function ReactionTap() {
+type ReactionTapProps = {
+  onComplete?: (payload?: { best?: number }) => void;
+};
+
+export default function ReactionTap({ onComplete }: ReactionTapProps) {
   const router = useRouter();
 
   const [roundState, setRoundState] = useState<RoundState>("idle");
@@ -181,6 +185,7 @@ export default function ReactionTap() {
     setReactionMs(measuredMs);
     setRoundState("result");
     setResultType("success");
+    onComplete?.({ best: measuredMs });
 
     const isNewBest = bestMs === null || measuredMs < bestMs;
     setNewBest(isNewBest);

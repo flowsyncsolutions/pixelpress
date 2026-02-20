@@ -7,6 +7,7 @@ import GameCover from "@/src/components/GameCover";
 import PlaySoftGate from "@/src/components/PlaySoftGate";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { CATEGORIES, getAllGames, type GameCategory } from "@/src/lib/games";
+import { metricsSessionStart } from "@/src/lib/metrics";
 import { getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progress";
 import { getTimeState } from "@/src/lib/timeLimit";
 import { getTrialStatus, startTrial } from "@/src/lib/trial";
@@ -66,6 +67,10 @@ export default function PlayPage() {
     }
     return liveGames.filter((game) => game.category === selectedCategory);
   }, [liveGames, selectedCategory]);
+
+  useEffect(() => {
+    metricsSessionStart();
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
