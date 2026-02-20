@@ -77,6 +77,7 @@ const TRAIL_SPAWN_INTERVAL = 0.035;
 const CRASH_SHAKE_DURATION_MS = 250;
 const CRASH_FLASH_DURATION_MS = 150;
 const CRASH_OVERLAY_DELAY_MS = 260;
+const JUMP_DEBOUNCE_MS = 70;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -127,6 +128,7 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
   const confettiTimerRef = useRef<number | null>(null);
   const crashTimerRef = useRef<number | null>(null);
   const crashFlashTimerRef = useRef<number | null>(null);
+  const lastJumpAtRef = useRef(0);
 
   const [gameState, setGameState] = useState<RunnerState>("ready");
   const [arenaHeight, setArenaHeight] = useState(DEFAULT_ARENA_HEIGHT);
@@ -261,6 +263,7 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
 
     hasAwardedRoundRef.current = false;
     hasNewBestRef.current = false;
+    lastJumpAtRef.current = 0;
 
     clearCrashTimers();
     setIsShaking(false);
@@ -295,7 +298,7 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
       }
     }
 
-    if (hasNewBestRef.current || finalScore >= CONFETTI_SCORE_THRESHOLD) {
+    if (hasNewBestRef.current) {
       setShowConfetti(true);
       clearConfettiTimer();
       confettiTimerRef.current = window.setTimeout(() => {
@@ -384,26 +387,40 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
 
       spawnTimerRef.current += deltaMs;
       if (spawnTimerRef.current >= nextSpawnMsRef.current) {
-        spawnTimerRef.current = 0;
         const arenaWidth = arenaRef.current?.clientWidth ?? DEFAULT_ARENA_WIDTH;
-        const variant: ObstacleVariant = Math.random() > 0.58 ? "big" : "small";
-        const isBig = variant === "big";
-        const width = isBig ? 52 + Math.random() * 12 : 30 + Math.random() * 8;
-        const height = isBig ? 62 + Math.random() * 10 : 40 + Math.random() * 10;
+        const spawnX = arenaWidth + 24;
+        const rightmostObstacleEdge = obstaclesRef.current.reduce(
+          (max, obstacle) => Math.max(max, obstacle.x + obstacle.width),
+          -Infinity,
+        );
+        const minGapPx = 148 + currentSpeed * 0.3;
 
-        obstaclesRef.current.push({
-          id: obstacleIdRef.current++,
-          x: arenaWidth + 24,
-          width,
-          height,
-          rotation: -20 + Math.random() * 40,
-          variant,
-          icon: isBig ? "🪨" : "☄️",
-        });
+        if (
+          Number.isFinite(rightmostObstacleEdge) &&
+          spawnX - rightmostObstacleEdge < minGapPx
+        ) {
+          spawnTimerRef.current = Math.max(0, nextSpawnMsRef.current - 28);
+        } else {
+          spawnTimerRef.current = 0;
+          const variant: ObstacleVariant = Math.random() > 0.58 ? "big" : "small";
+          const isBig = variant === "big";
+          const width = isBig ? 52 + Math.random() * 12 : 30 + Math.random() * 8;
+          const height = isBig ? 62 + Math.random() * 10 : 40 + Math.random() * 10;
 
-        const speedOffset = (speedRef.current - modeBaseSpeed) * 1.35;
-        const baseSpawn = 1040 + Math.random() * 420 - speedOffset;
-        nextSpawnMsRef.current = Math.max(420, baseSpawn / modeSpawnMult);
+          obstaclesRef.current.push({
+            id: obstacleIdRef.current++,
+            x: spawnX,
+            width,
+            height,
+            rotation: -20 + Math.random() * 40,
+            variant,
+            icon: isBig ? "🪨" : "☄️",
+          });
+
+          const speedOffset = (speedRef.current - modeBaseSpeed) * 1.35;
+          const baseSpawn = 1040 + Math.random() * 420 - speedOffset;
+          nextSpawnMsRef.current = Math.max(420, baseSpawn / modeSpawnMult);
+        }
       }
 
       trailSpawnTimerRef.current += delta;
@@ -459,15 +476,15 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
       }
 
       const playerHitbox: Box = {
-        x: PLAYER_X + 8,
-        y: playerYRef.current + 8,
-        width: PLAYER_SIZE - 16,
-        height: PLAYER_SIZE - 16,
+        x: PLAYER_X + 10,
+        y: playerYRef.current + 10,
+        width: PLAYER_SIZE - 20,
+        height: PLAYER_SIZE - 20,
       };
 
       const collided = obstaclesRef.current.some((obstacle) => {
-        const insetX = obstacle.variant === "big" ? 11 : 8;
-        const insetY = obstacle.variant === "big" ? 12 : 8;
+        const insetX = obstacle.variant === "big" ? 13 : 10;
+        const insetY = obstacle.variant === "big" ? 14 : 10;
         const obstacleHitbox: Box = {
           x: obstacle.x + insetX,
           y: Math.max(0, groundTop - obstacle.height + insetY),
@@ -514,6 +531,12 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
       return;
     }
 
+    const now = performance.now();
+    if (now - lastJumpAtRef.current < JUMP_DEBOUNCE_MS) {
+      return;
+    }
+    lastJumpAtRef.current = now;
+
     if (gameStateRef.current === "ready") {
       startRound();
     }
@@ -532,6 +555,9 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
   }, [getPlayerGroundY, startRound]);
 
   const handleAreaPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || event.button > 0) {
+      return;
+    }
     if (gameState === "game_over" || gameState === "crashing") {
       return;
     }
@@ -828,8 +854,8 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
             {gameState === "ready" ? (
               <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center px-4">
                 <div className="rounded-2xl border border-slate-100/20 bg-slate-900/75 px-5 py-4 text-center shadow-[0_12px_28px_rgba(2,6,23,0.55)]">
-                  <p className="text-base font-bold text-white">Tap to start</p>
-                  <p className="mt-1 text-sm text-slate-300">Tap again to jump over asteroids.</p>
+                  <p className="text-base font-bold text-white">Tap anywhere to start</p>
+                  <p className="mt-1 text-sm text-slate-300">Keep tapping to jump over asteroids.</p>
                 </div>
               </div>
             ) : null}
