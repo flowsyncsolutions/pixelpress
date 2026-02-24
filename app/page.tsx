@@ -8,7 +8,7 @@ import { metricsGetAll } from "@/src/lib/metrics";
 import { resetIfNewDay } from "@/src/lib/timeLimit";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
 import { safeGet, safeSet } from "@/src/lib/storageGuard";
-import { startTrial } from "@/src/lib/trial";
+import { type TrialState, getTrialStatus, startTrial } from "@/src/lib/trial";
 import {
   getPendingUnlockNotice,
   getUnlockedFeatures,
@@ -25,6 +25,7 @@ export default function Home() {
   const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
   const [showChallengeBadge, setShowChallengeBadge] = useState(false);
   const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
+  const [trialState, setTrialState] = useState<TrialState>("full");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -52,6 +53,7 @@ export default function Home() {
       setStars(totalStars);
       setStreak(getStreak());
       setShowChallengeBadge(getUnlockedFeatures().challengeBadgeUnlocked);
+      setTrialState(getTrialStatus().state);
 
       const notice = getPendingUnlockNotice(totalStars);
       if (notice) {
@@ -128,6 +130,23 @@ export default function Home() {
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-200">
             Kid-safe. Ad-free. Offline.
           </p>
+          <div className="mb-4">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.1em] ${
+                trialState === "expired"
+                  ? "border-rose-200/45 bg-rose-400/15 text-rose-100"
+                  : trialState === "limited"
+                    ? "border-amber-200/45 bg-amber-400/15 text-amber-100"
+                    : "border-emerald-200/45 bg-emerald-400/15 text-emerald-100"
+              }`}
+            >
+              {trialState === "expired"
+                ? "Trial Expired"
+                : trialState === "limited"
+                  ? "Limited Trial"
+                  : "Full Trial"}
+            </span>
+          </div>
 
           <h1 className="max-w-xl text-balance text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl">
             A safe arcade for kids and the classics you grew up with.

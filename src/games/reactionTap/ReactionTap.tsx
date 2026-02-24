@@ -10,6 +10,7 @@ import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { safeGet, safeSet } from "@/src/lib/storageGuard";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
+import { getTrialStatus } from "@/src/lib/trial";
 
 type RoundState = "idle" | "waiting" | "ready" | "result";
 type ResultType = "success" | "tooSoon" | null;
@@ -171,8 +172,10 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
 
     const previousBest = bestMsRef.current;
     const isNewBest = previousBest === null || measuredMs < previousBest;
-    setNewBest(isNewBest);
-    if (isNewBest) {
+    const rewardsEnabled = getTrialStatus().state !== "limited";
+
+    setNewBest(isNewBest && rewardsEnabled);
+    if (isNewBest && rewardsEnabled) {
       saveBest(measuredMs);
       setShowConfetti(true);
       clearConfettiTimer();
@@ -180,13 +183,17 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
         setShowConfetti(false);
         confettiTimerRef.current = null;
       }, CONFETTI_MS);
+    } else if (isNewBest) {
+      saveBest(measuredMs);
     }
 
-    if (measuredMs < STAR_TARGET_MS && !hasAwardedRoundRef.current) {
+    if (measuredMs < STAR_TARGET_MS && !hasAwardedRoundRef.current && rewardsEnabled) {
       addStars(1);
       markPlayedToday();
       hasAwardedRoundRef.current = true;
       setEarnedStar(true);
+    } else {
+      setEarnedStar(false);
     }
   }, [clearConfettiTimer, clearWaitTimer, onComplete, saveBest, transitionRound]);
 

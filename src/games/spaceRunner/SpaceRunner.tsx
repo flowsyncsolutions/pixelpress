@@ -17,6 +17,7 @@ import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
+import { getTrialStatus } from "@/src/lib/trial";
 import { getUnlockedFeatures } from "@/src/lib/unlocks";
 import { getSpaceRunnerMode } from "@/src/lib/variants";
 
@@ -298,7 +299,7 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
       }
     }
 
-    if (hasNewBestRef.current) {
+    if (hasNewBestRef.current && getTrialStatus().state !== "limited") {
       setShowConfetti(true);
       clearConfettiTimer();
       confettiTimerRef.current = window.setTimeout(() => {
@@ -470,8 +471,12 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
         setScore(nextScore);
 
         if (!hasNewBestRef.current && nextScore > roundStartHighScoreRef.current) {
-          hasNewBestRef.current = true;
-          setHasNewBest(true);
+          if (getTrialStatus().state !== "limited") {
+            hasNewBestRef.current = true;
+            setHasNewBest(true);
+          } else {
+            setHasNewBest(false);
+          }
         }
       }
 

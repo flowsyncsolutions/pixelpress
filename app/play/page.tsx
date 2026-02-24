@@ -10,7 +10,7 @@ import { CATEGORIES, getAllGames, type GameCategory } from "@/src/lib/games";
 import { metricsGetAll, metricsSessionStart } from "@/src/lib/metrics";
 import { ensureProgressDefaults, getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progress";
 import { getTimeState, resetIfNewDay } from "@/src/lib/timeLimit";
-import { getTrialStatus, startTrial } from "@/src/lib/trial";
+import { type TrialState, getTrialStatus, startTrial } from "@/src/lib/trial";
 import { ACCENT_STYLES, THEME, type AccentTone } from "@/src/lib/theme";
 import {
   getPendingUnlockNotice,
@@ -53,8 +53,8 @@ export default function PlayPage() {
   const [streak, setStreak] = useState(0);
   const [timeEnabled, setTimeEnabled] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [trialDaysRemaining, setTrialDaysRemaining] = useState(14);
-  const [trialExpired, setTrialExpired] = useState(false);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(11);
+  const [trialState, setTrialState] = useState<TrialState>("full");
   const [showChallengeBadge, setShowChallengeBadge] = useState(false);
   const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
   const lastStarsSeenRef = useRef<number | null>(null);
@@ -139,7 +139,7 @@ export default function PlayPage() {
 
       const trial = getTrialStatus();
       setTrialDaysRemaining(trial.daysRemaining);
-      setTrialExpired(trial.isExpired);
+      setTrialState(trial.state);
 
       const time = getTimeState();
       setTimeEnabled(time.enabled);
@@ -200,13 +200,21 @@ export default function PlayPage() {
                 ⏱️ Time left: {Math.ceil(remainingSeconds / 60)}m
               </span>
             ) : null}
-            {trialExpired ? (
+            {trialState === "expired" ? (
               <span className="inline-flex items-center gap-2 rounded-xl border border-rose-200/35 bg-rose-300/15 px-3 py-2 text-sm font-semibold text-rose-100">
-                🧾 Trial expired
+                🧾 Trial Expired
               </span>
             ) : (
-              <span className="inline-flex items-center gap-2 rounded-xl border border-indigo-200/30 bg-indigo-300/10 px-3 py-2 text-sm font-semibold text-indigo-100">
-                🗓️ Trial: {trialDaysRemaining} days left
+              <span
+                className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
+                  trialState === "limited"
+                    ? "border border-amber-200/35 bg-amber-300/15 text-amber-100"
+                    : "border border-indigo-200/30 bg-indigo-300/10 text-indigo-100"
+                }`}
+              >
+                {trialState === "limited"
+                  ? `🧾 Limited Trial: ${trialDaysRemaining} days left`
+                  : `🗓️ Full Trial: ${trialDaysRemaining} days left`}
               </span>
             )}
           </div>

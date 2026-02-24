@@ -4,8 +4,11 @@ const TRIAL_STARTED_AT_KEY = "pp_trial_started_at";
 const TRIAL_DAYS_KEY = "pp_trial_days";
 const TRIAL_OVERRIDE_UNLOCKED_KEY = "pp_trial_override_unlocked";
 
-const DEFAULT_TRIAL_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const FULL_PHASE_END_DAY = 3;
+const LIMITED_PHASE_END_DAY = 10;
+
+export type TrialState = "full" | "limited" | "expired";
 
 function readNumber(value: string | null, fallback: number): number {
   const parsed = Number(value);
@@ -15,15 +18,6 @@ function readNumber(value: string | null, fallback: number): number {
   return parsed;
 }
 
-function readTrialDays(): number {
-  const raw = safeGet(TRIAL_DAYS_KEY, String(DEFAULT_TRIAL_DAYS));
-  const normalized = Math.max(1, Math.floor(readNumber(raw, DEFAULT_TRIAL_DAYS)));
-  if (raw !== String(normalized)) {
-    safeSet(TRIAL_DAYS_KEY, String(normalized));
-  }
-  return normalized;
-}
-
 export function startTrial(): void {
   const existingStartedAt = safeGet(TRIAL_STARTED_AT_KEY, "");
   if (!existingStartedAt) {
@@ -31,22 +25,25 @@ export function startTrial(): void {
   }
 
   if (!safeGet(TRIAL_DAYS_KEY, "")) {
-    safeSet(TRIAL_DAYS_KEY, String(DEFAULT_TRIAL_DAYS));
+    // Legacy key kept for compatibility with previous builds.
+    safeSet(TRIAL_DAYS_KEY, "14");
   }
 }
 
 export function getTrialStatus(): {
-  isActive: boolean;
+  state: TrialState;
   daysRemaining: number;
+  isActive: boolean;
   hasStarted: boolean;
   isExpired: boolean;
 } {
-  const trialDays = readTrialDays();
+  const trialDays = Math.max(1, LIMITED_PHASE_END_DAY + 1);
 
   if (typeof window === "undefined") {
     return {
-      isActive: false,
+      state: "full",
       daysRemaining: trialDays,
+      isActive: false,
       hasStarted: false,
       isExpired: false,
     };
@@ -55,8 +52,9 @@ export function getTrialStatus(): {
   const startedAtRaw = safeGet(TRIAL_STARTED_AT_KEY, "");
   if (!startedAtRaw) {
     return {
-      isActive: false,
+      state: "full",
       daysRemaining: trialDays,
+      isActive: false,
       hasStarted: false,
       isExpired: false,
     };
@@ -65,8 +63,9 @@ export function getTrialStatus(): {
   const startedAt = readNumber(startedAtRaw, 0);
   if (startedAt <= 0) {
     return {
-      isActive: false,
+      state: "full",
       daysRemaining: trialDays,
+      isActive: false,
       hasStarted: false,
       isExpired: false,
     };
@@ -74,15 +73,28 @@ export function getTrialStatus(): {
 
   const elapsedMs = Math.max(0, Date.now() - startedAt);
   const elapsedDays = Math.floor(elapsedMs / MS_PER_DAY);
-  const daysRemaining = Math.max(0, trialDays - elapsedDays);
-  const isExpired = daysRemaining <= 0;
+  const daysRemaining = Math.max(0, LIMITED_PHASE_END_DAY + 1 - elapsedDays);
+
+  let state: TrialState = "full";
+  if (elapsedDays > LIMITED_PHASE_END_DAY) {
+    state = "expired";
+  } else if (elapsedDays > FULL_PHASE_END_DAY) {
+    state = "limited";
+  }
+
+  const isExpired = state === "expired";
 
   return {
-    isActive: !isExpired,
+    state,
     daysRemaining,
+    isActive: !isExpired,
     hasStarted: true,
     isExpired,
   };
+}
+
+export function isTrialLimitedMode(): boolean {
+  return getTrialStatus().state === "limited";
 }
 
 export function isTrialOverrideUnlocked(): boolean {

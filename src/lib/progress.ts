@@ -1,4 +1,5 @@
 import { safeGet, safeSet } from "./storageGuard";
+import { isTrialLimitedMode } from "./trial";
 
 const STARS_TOTAL_KEY = "pp_stars_total";
 const STREAK_COUNT_KEY = "pp_streak_count";
@@ -54,6 +55,9 @@ export function getStarsTotal(): number {
 
 export function addStars(amount: number): void {
   if (amount <= 0) {
+    return;
+  }
+  if (isTrialLimitedMode()) {
     return;
   }
   const current = getStarsTotal();
