@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import InstallBanner from "@/src/components/InstallBanner";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { useInstallPrompt } from "@/src/lib/installPrompt";
 
@@ -46,6 +47,8 @@ export default function WelcomePage() {
 
   return (
     <section className="mx-auto w-full max-w-4xl space-y-5 pb-8 pt-2 sm:space-y-6">
+      <InstallBanner showWhenDismissed />
+
       <header className="rounded-2xl border border-slate-200/15 bg-slate-900/90 p-5 shadow-[0_12px_32px_rgba(2,6,23,0.45)] sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Parent Setup</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">Welcome to PixelPress</h1>
