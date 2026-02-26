@@ -37,9 +37,28 @@ function detectIosSafari(): boolean {
   return isSafariToken && !blockedBrowsers;
 }
 
+function detectPlatform(isIosSafari: boolean): "ios" | "android" | "other" {
+  if (typeof window === "undefined") {
+    return "other";
+  }
+
+  const ua = window.navigator.userAgent;
+  if (isIosSafari) {
+    return "ios";
+  }
+  if (/Android/i.test(ua)) {
+    return "android";
+  }
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    return "ios";
+  }
+  return "other";
+}
+
 export function usePwaInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIosSafari, setIsIosSafari] = useState(false);
+  const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
   const [deferredPrompt, setDeferredPrompt] = useState<DeferredInstallPromptEvent | null>(null);
 
   useEffect(() => {
@@ -47,8 +66,10 @@ export function usePwaInstall() {
       return;
     }
 
+    const iosSafari = detectIosSafari();
     setIsInstalled(detectInstalled());
-    setIsIosSafari(detectIosSafari());
+    setIsIosSafari(iosSafari);
+    setPlatform(detectPlatform(iosSafari));
 
     const displayModeQuery = window.matchMedia("(display-mode: standalone)");
     const legacyDisplayModeQuery = displayModeQuery as MediaQueryList & {
@@ -96,7 +117,10 @@ export function usePwaInstall() {
 
     await deferredPrompt.prompt();
     try {
-      await deferredPrompt.userChoice;
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === "accepted") {
+        setIsInstalled(true);
+      }
     } finally {
       setDeferredPrompt(null);
       setIsInstalled(detectInstalled());
@@ -106,6 +130,7 @@ export function usePwaInstall() {
   return {
     isInstalled,
     isIosSafari,
+    platform,
     canPromptInstall: Boolean(deferredPrompt) && !isInstalled,
     promptInstall,
   };
