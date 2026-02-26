@@ -1,5 +1,5 @@
 import type { AccentTone } from "./theme";
-import { MEMORY_MATCH_THEMES, SPACE_RUNNER_MODES } from "./variants";
+import { SPACE_RUNNER_MODES } from "./variants";
 
 export const CATEGORIES = ["kids", "classics", "educational", "puzzles"] as const;
 
@@ -86,24 +86,6 @@ const BASE_GAMES: Game[] = [
     internalEngine: "tictactoe",
   },
 ];
-
-const MEMORY_MATCH_VARIANTS: Game[] = MEMORY_MATCH_THEMES.map((theme) => ({
-  slug: `memory-match-${theme.id}`,
-  title: `Memory Match: ${theme.label}`,
-  icon: "🧠",
-  accent: "violet",
-  featured: false,
-  description: `Match pairs with the ${theme.label} theme.`,
-  tags: ["kids", "memory", "variant"],
-  category: "kids",
-  status: "live",
-  embedType: "internal",
-  internalEngine: "memoryMatch",
-  variantOf: "memory-match",
-  variantId: theme.id,
-  variantLabel: theme.label,
-  params: { themeId: theme.id },
-}));
 
 const SPACE_RUNNER_VARIANTS: Game[] = SPACE_RUNNER_MODES.map((mode) => ({
   slug: `space-runner-${mode.id}`,
@@ -236,7 +218,6 @@ const COMING_SOON_GAMES: Game[] = [
 
 export const GAMES: Game[] = [
   ...BASE_GAMES,
-  ...MEMORY_MATCH_VARIANTS,
   ...SPACE_RUNNER_VARIANTS,
   ...COMING_SOON_GAMES,
 ];

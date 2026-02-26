@@ -138,14 +138,12 @@ export default function PlayGameClient({ game }: PlayGameClientProps) {
                   typeof game.params?.modeId === "string" ? game.params.modeId : undefined,
               }}
             />
+          ) : game.internalEngine === "memoryMatch" && game.slug === "memory-match" ? (
+            <MemoryMatch onComplete={handleComplete} />
           ) : game.internalEngine === "memoryMatch" ? (
-            <MemoryMatch
-              onComplete={handleComplete}
-              params={{
-                themeId:
-                  typeof game.params?.themeId === "string" ? game.params.themeId : undefined,
-              }}
-            />
+            <div className="rounded-2xl border border-dashed border-slate-200/25 bg-slate-900/85 p-10 text-center text-sm text-slate-200">
+              This Memory Match variant is no longer available.
+            </div>
           ) : game.internalEngine === "reactionTap" ? (
             <ReactionTap onComplete={handleComplete} />
           ) : (

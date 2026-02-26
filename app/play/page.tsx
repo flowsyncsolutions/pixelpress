@@ -38,9 +38,6 @@ function getVariantBadgeText(game: {
     return null;
   }
 
-  if (game.variantOf === "memory-match") {
-    return `Theme: ${game.variantLabel}`;
-  }
   if (game.variantOf === "space-runner") {
     return `Mode: ${game.variantLabel}`;
   }

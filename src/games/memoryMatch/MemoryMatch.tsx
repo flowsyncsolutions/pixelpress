@@ -10,7 +10,7 @@ import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { safeGet, safeSet } from "@/src/lib/storageGuard";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 import { getUnlockedFeatures } from "@/src/lib/unlocks";
-import { getMemoryMatchTheme } from "@/src/lib/variants";
+import { MEMORY_MATCH_THEMES } from "@/src/lib/variants";
 
 type Difficulty = "easy" | "normal" | "hard";
 type GameState = "ready" | "playing" | "won";
@@ -71,6 +71,10 @@ const MISMATCH_FLIP_BACK_MS = 650;
 const FEEDBACK_DURATION_MS = 620;
 const ELAPSED_TICK_MS = 100;
 
+const SELECTABLE_THEME_IDS = new Set(["space", "animals", "shapes", "food"]);
+const THEME_OPTIONS = MEMORY_MATCH_THEMES.filter((theme) => SELECTABLE_THEME_IDS.has(theme.id));
+const DEFAULT_THEME_ID = THEME_OPTIONS.find((theme) => theme.id === "space")?.id ?? "space";
+
 function fisherYatesShuffle<T>(items: T[]): T[] {
   const shuffled = [...items];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -101,7 +105,7 @@ function pickUnique(values: string[], count: number, fallback: string[]): string
 }
 
 function getCardValuesForTheme(themeId?: string): Record<Difficulty, string[]> {
-  const theme = getMemoryMatchTheme(themeId);
+  const theme = THEME_OPTIONS.find((option) => option.id === themeId);
   if (!theme) {
     return DEFAULT_CARD_VALUES;
   }
@@ -174,17 +178,17 @@ function createEmptyBestRecord(): BestRecord {
 
 type MemoryMatchProps = {
   onComplete?: (payload?: { best?: number }) => void;
-  params?: { themeId?: string };
 };
 
-export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
+export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
   const router = useRouter();
 
-  const cardValues = useMemo(() => getCardValuesForTheme(params?.themeId), [params?.themeId]);
+  const [themeId, setThemeId] = useState<string>(DEFAULT_THEME_ID);
+  const cardValues = useMemo(() => getCardValuesForTheme(themeId), [themeId]);
 
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [cards, setCards] = useState<Card[]>(() =>
-    buildDeck("easy", getCardValuesForTheme(params?.themeId)),
+    buildDeck("easy", getCardValuesForTheme(DEFAULT_THEME_ID)),
   );
   const [flippedIndexes, setFlippedIndexes] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
@@ -222,6 +226,8 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
   const totalPairs = cardValues[difficulty].length;
   const currentBestMoves = bestMoves[difficulty];
   const currentBestTime = bestTimes[difficulty];
+  const currentThemeLabel =
+    THEME_OPTIONS.find((option) => option.id === themeId)?.label ?? "Space";
   const gridClass =
     difficulty === "easy"
       ? "grid-cols-3 gap-2 sm:gap-3"
@@ -419,6 +425,16 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
     difficultyRef.current = nextDifficulty;
     setDifficulty(nextDifficulty);
     resetBoard(nextDifficulty);
+  };
+
+  const handleThemeChange = (nextThemeId: string) => {
+    if (!THEME_OPTIONS.some((option) => option.id === nextThemeId)) {
+      return;
+    }
+    if (nextThemeId === themeId) {
+      return;
+    }
+    setThemeId(nextThemeId);
   };
 
   const handleCardPress = (index: number) => {
@@ -684,6 +700,21 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
             >
               Play Again
             </button>
+            <label className={`${arcade.chip} gap-2`}>
+              <span className="font-semibold text-slate-200">Theme</span>
+              <select
+                value={themeId}
+                onChange={(event) => handleThemeChange(event.target.value)}
+                className="h-9 min-w-[120px] rounded-lg border border-slate-200/25 bg-slate-900 px-3 text-sm font-semibold text-slate-100 outline-none focus:border-violet-300/60"
+                aria-label="Theme"
+              >
+                {THEME_OPTIONS.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="inline-flex rounded-xl border border-slate-200/20 bg-slate-900/90 p-1">
               <button
                 type="button"
@@ -742,6 +773,9 @@ export default function MemoryMatch({ onComplete, params }: MemoryMatchProps) {
               <strong className="font-black text-cyan-100">
                 {currentBestTime ? formatDuration(currentBestTime) : "--"}
               </strong>
+            </span>
+            <span className={arcade.chip}>
+              Theme: <strong className="font-black text-violet-100">{currentThemeLabel}</strong>
             </span>
           </div>
         </div>
