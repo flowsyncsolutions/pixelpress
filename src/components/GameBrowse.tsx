@@ -15,6 +15,13 @@ import {
 } from "@/src/lib/games";
 import { metricsGetAll, metricsSessionStart } from "@/src/lib/metrics";
 import { ensureProgressDefaults, getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progress";
+import {
+  type StarCapState,
+  getStarCapState,
+  getTodayKey as getStarCapTodayKey,
+  resetIfNewDay as resetStarCapIfNewDay,
+} from "@/src/lib/starCap";
+import { safeGet, safeSet } from "@/src/lib/storageGuard";
 import { getTimeState, resetIfNewDay } from "@/src/lib/timeLimit";
 import { type TrialState, getTrialStatus, startTrial } from "@/src/lib/trial";
 import { ACCENT_STYLES, THEME, type AccentTone } from "@/src/lib/theme";
@@ -45,6 +52,7 @@ const CATEGORY_META: Record<
 };
 
 const CATEGORY_ORDER: BrowseCategory[] = ["all", "kids", "classics", "educational", "puzzles"];
+const STARCAP_NOTIFIED_DAY_KEY = "pp_starcap_notified_day_key";
 
 function getVariantBadgeText(game: { variantOf?: string; variantLabel?: string }): string | null {
   if (!game.variantOf || !game.variantLabel) {
@@ -67,6 +75,13 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
   const [trialState, setTrialState] = useState<TrialState>("full");
   const [showChallengeBadge, setShowChallengeBadge] = useState(false);
   const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
+  const [starCapState, setStarCapState] = useState<StarCapState>({
+    earnedToday: 0,
+    limit: 5,
+    remaining: 5,
+    capped: false,
+  });
+  const [showStarCapToast, setShowStarCapToast] = useState(false);
   const lastStarsSeenRef = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -108,10 +123,12 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
 
     const timer = window.setTimeout(() => {
       resetIfNewDay();
+      resetStarCapIfNewDay();
       ensureProgressDefaults();
       startTrial();
       metricsGetAll();
       getUnlockedFeatures();
+      getStarCapState();
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -148,6 +165,18 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
       setTrialDaysRemaining(trial.daysRemaining);
       setTrialState(trial.state);
 
+      resetStarCapIfNewDay();
+      const cap = getStarCapState();
+      setStarCapState(cap);
+      if (cap.capped) {
+        const today = getStarCapTodayKey();
+        const notifiedDay = safeGet(STARCAP_NOTIFIED_DAY_KEY, "");
+        if (notifiedDay !== today) {
+          safeSet(STARCAP_NOTIFIED_DAY_KEY, today);
+          setShowStarCapToast(true);
+        }
+      }
+
       const time = getTimeState();
       setTimeEnabled(time.enabled);
       setRemainingSeconds(time.remainingSeconds);
@@ -169,6 +198,14 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
     const timer = window.setTimeout(() => setUnlockNotice(null), 2300);
     return () => window.clearTimeout(timer);
   }, [unlockNotice]);
+
+  useEffect(() => {
+    if (!showStarCapToast) {
+      return;
+    }
+    const timer = window.setTimeout(() => setShowStarCapToast(false), 2600);
+    return () => window.clearTimeout(timer);
+  }, [showStarCapToast]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -316,6 +353,16 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
           </div>
         </div>
       ) : null}
+      {showStarCapToast ? (
+        <div className="pointer-events-none fixed left-1/2 top-36 z-50 w-[min(92vw,380px)] -translate-x-1/2">
+          <div className="rounded-2xl border border-cyan-200/45 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-100">Star limit reached</p>
+            <p className="mt-1 text-sm font-semibold text-slate-100">
+              Great job! Come back tomorrow to earn more stars.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <PlaySoftGate />
       <ExitGate />
@@ -402,6 +449,15 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/30 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100">
                   🔥 Streak: {streak}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
+                    starCapState.capped
+                      ? "border border-amber-200/35 bg-amber-300/15 text-amber-100"
+                      : "border border-emerald-200/30 bg-emerald-300/10 text-emerald-100"
+                  }`}
+                >
+                  ⭐ Stars today: {starCapState.earnedToday} / {starCapState.limit}
                 </span>
                 {timeEnabled ? (
                   <span className="inline-flex items-center gap-2 rounded-xl border border-violet-200/30 bg-violet-300/10 px-3 py-2 text-sm font-semibold text-violet-100">
@@ -491,6 +547,11 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
                   );
                 })}
               </div>
+              {starCapState.capped ? (
+                <p className="mt-3 text-sm font-semibold text-amber-100">
+                  You earned all your stars for today. Come back tomorrow ⭐
+                </p>
+              ) : null}
             </section>
           ) : null}
 

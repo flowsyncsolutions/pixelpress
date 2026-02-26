@@ -1,4 +1,5 @@
 import { safeGet, safeSet } from "./storageGuard";
+import { getStarCapState, recordStarEarned, resetIfNewDay as resetStarCapIfNewDay } from "./starCap";
 import { isTrialLimitedMode } from "./trial";
 
 const STARS_TOTAL_KEY = "pp_stars_total";
@@ -53,15 +54,36 @@ export function getStarsTotal(): number {
   return readNumber(STARS_TOTAL_KEY);
 }
 
-export function addStars(amount: number): void {
+export type AddStarsResult = {
+  success: boolean;
+  reason?: "invalid" | "limited" | "capped";
+  awarded?: number;
+};
+
+export function addStars(amount: number): AddStarsResult {
   if (amount <= 0) {
-    return;
+    return { success: false, reason: "invalid" };
   }
   if (isTrialLimitedMode()) {
-    return;
+    return { success: false, reason: "limited" };
   }
+
+  resetStarCapIfNewDay();
+  const capState = getStarCapState();
+  if (capState.capped) {
+    return { success: false, reason: "capped" };
+  }
+
+  const requestedAmount = Math.max(1, Math.floor(amount));
+  const awarded = Math.min(requestedAmount, capState.remaining);
+  if (awarded <= 0) {
+    return { success: false, reason: "capped" };
+  }
+
+  recordStarEarned(awarded);
   const current = getStarsTotal();
-  writeNumber(STARS_TOTAL_KEY, current + amount);
+  writeNumber(STARS_TOTAL_KEY, current + awarded);
+  return { success: true, awarded };
 }
 
 export function getStreak(): number {
