@@ -17,7 +17,7 @@ export type Game = {
   category: GameCategory;
   status: "live" | "coming_soon";
   embedType: "internal" | "iframe";
-  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch" | "reactionTap" | "fruitCrush";
+  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch" | "reactionTap";
   embedSrc?: string;
   variantOf?: string;
   variantId?: string;
@@ -56,25 +56,6 @@ const BASE_GAMES: Game[] = [
     status: "live",
     embedType: "internal",
     internalEngine: "reactionTap",
-  },
-  {
-    slug: "fruit-crush",
-    title: "Fruit Crush",
-    icon: "🍓",
-    accent: "rose",
-    featured: true,
-    description: "Match fruits to score big.",
-    tags: ["kids", "match-3", "puzzle"],
-    category: "kids",
-    status: "live",
-    embedType: "internal",
-    internalEngine: "fruitCrush",
-    params: {
-      size: 8,
-      fruits: ["🍎", "🍌", "🍇", "🍓", "🍊", "🥝"],
-      moves: 25,
-      targetScore: 2500,
-    },
   },
   {
     slug: "memory-match",
