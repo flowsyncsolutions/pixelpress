@@ -19,6 +19,7 @@ import MemoryMatch from "@/src/games/memoryMatch/MemoryMatch";
 import ReactionTap from "@/src/games/reactionTap/ReactionTap";
 import SpaceRunner from "@/src/games/spaceRunner/SpaceRunner";
 import TicTacToe from "@/src/games/tictactoe/TicTacToe";
+import FruitCrush from "@/src/games/fruitCrush/FruitCrush";
 
 type PlayGameClientProps = {
   game: Game;
@@ -148,6 +149,23 @@ export default function PlayGameClient({ game }: PlayGameClientProps) {
             />
           ) : game.internalEngine === "reactionTap" ? (
             <ReactionTap onComplete={handleComplete} />
+          ) : game.internalEngine === "fruitCrush" ? (
+            <FruitCrush
+              onComplete={handleComplete}
+              params={{
+                size:
+                  typeof game.params?.size === "number" ? game.params.size : undefined,
+                fruits: Array.isArray(game.params?.fruits)
+                  ? game.params.fruits.filter((value): value is string => typeof value === "string")
+                  : undefined,
+                moves:
+                  typeof game.params?.moves === "number" ? game.params.moves : undefined,
+                targetScore:
+                  typeof game.params?.targetScore === "number"
+                    ? game.params.targetScore
+                    : undefined,
+              }}
+            />
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-200/25 bg-slate-900/85 p-10 text-center text-sm text-slate-200">
               Internal game engine coming soon.
