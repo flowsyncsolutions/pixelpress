@@ -46,3 +46,12 @@ a {
     0 0 18px rgb(139 92 246 / 0.2),
     0 16px 32px rgb(2 6 23 / 0.42);
 }
+
+.pp-scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.pp-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}

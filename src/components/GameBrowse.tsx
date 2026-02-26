@@ -67,6 +67,7 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
   const [showChallengeBadge, setShowChallengeBadge] = useState(false);
   const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
   const lastStarsSeenRef = useRef<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const allGames = useMemo(() => getAllGames(), []);
   const allLiveGames = useMemo(() => getLiveGames(), []);
@@ -166,6 +167,53 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
     return () => window.clearTimeout(timer);
   }, [unlockNotice]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const isTypingTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      const tagName = target.tagName.toLowerCase();
+      if (tagName === "input" || tagName === "textarea" || tagName === "select") {
+        return true;
+      }
+
+      if (target.isContentEditable) {
+        return true;
+      }
+
+      return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+    };
+
+    const hasOpenModal = (): boolean => {
+      return Boolean(document.querySelector("[role='dialog'][aria-modal='true']"));
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.defaultPrevented) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      if (isTypingTarget(event.target) || hasOpenModal()) {
+        return;
+      }
+
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   const headingLabel = category === "all" ? "Game Shelf" : `${CATEGORY_META[category].label} Games`;
 
   return (
@@ -182,8 +230,8 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
       <PlaySoftGate />
       <ExitGate />
 
-      <div className={`${THEME.surfaces.card} p-2`}>
-        <div className="flex gap-2 overflow-x-auto">
+      <div className="sticky top-[70px] z-10 rounded-2xl border border-slate-200/12 bg-slate-950/90 p-2 shadow-[0_10px_24px_rgba(2,6,23,0.35)] backdrop-blur">
+        <div className="pp-scrollbar-hidden flex gap-2 overflow-x-auto whitespace-nowrap">
           {CATEGORY_ORDER.map((entry) => {
             const meta = CATEGORY_META[entry];
             const isActive = entry === category;
@@ -251,13 +299,19 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
 
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-slate-200">Search Games</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search games…"
-            className="h-11 w-full rounded-xl border border-slate-200/20 bg-slate-950/90 px-4 text-base text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-300/60"
-          />
+          <div className="relative">
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search games…"
+              className="h-11 w-full rounded-xl border border-slate-200/20 bg-slate-950/90 px-4 pr-14 text-base text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-300/60"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200/20 bg-slate-900/90 px-2 py-1 text-xs font-semibold text-slate-300 md:inline-flex">
+              /
+            </span>
+          </div>
         </label>
       </header>
 
