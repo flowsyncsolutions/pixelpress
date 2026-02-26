@@ -447,6 +447,9 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
                     </span>
                   ) : null}
                 </span>
+                <Link href="/shop" className={arcade.secondaryButton}>
+                  Shop
+                </Link>
                 <span className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/30 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100">
                   🔥 Streak: {streak}
                 </span>

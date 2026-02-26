@@ -16,10 +16,11 @@ import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
+import { getPurchases } from "@/src/lib/shop";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 import { getTrialStatus } from "@/src/lib/trial";
 import { getUnlockedFeatures } from "@/src/lib/unlocks";
-import { getSpaceRunnerMode } from "@/src/lib/variants";
+import { SPACE_RUNNER_MODES, getSpaceRunnerMode } from "@/src/lib/variants";
 
 type RunnerState = "ready" | "playing" | "crashing" | "game_over";
 type ObstacleVariant = "small" | "big";
@@ -79,9 +80,21 @@ const CRASH_SHAKE_DURATION_MS = 250;
 const CRASH_FLASH_DURATION_MS = 150;
 const CRASH_OVERLAY_DELAY_MS = 260;
 const JUMP_DEBOUNCE_MS = 70;
+const MODE_PURCHASE_REQUIREMENTS: Record<string, string | undefined> = {
+  meteor: "mode_meteor",
+  lowgrav: "mode_lowgrav",
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function isModeUnlocked(modeId: string, purchases: Set<string>): boolean {
+  const requiredPurchase = MODE_PURCHASE_REQUIREMENTS[modeId];
+  if (!requiredPurchase) {
+    return true;
+  }
+  return purchases.has(requiredPurchase);
 }
 
 function hasOverlap(a: Box, b: Box): boolean {
@@ -95,7 +108,14 @@ type SpaceRunnerProps = {
 
 export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
   const router = useRouter();
-  const modeConfig = useMemo(() => getSpaceRunnerMode(params?.modeId), [params?.modeId]);
+  const initialModeId = typeof params?.modeId === "string" ? params.modeId : "normal";
+  const [selectedModeId, setSelectedModeId] = useState(initialModeId);
+  const [purchases, setPurchases] = useState<Set<string>>(() => new Set());
+  const effectiveModeId = useMemo(
+    () => (isModeUnlocked(selectedModeId, purchases) ? selectedModeId : "normal"),
+    [selectedModeId, purchases],
+  );
+  const modeConfig = useMemo(() => getSpaceRunnerMode(effectiveModeId), [effectiveModeId]);
   const modeBaseSpeed = Math.round(BASE_SPEED * modeConfig.speedMult);
   const modeMaxSpeed = Math.round(MAX_SPEED * modeConfig.speedMult);
   const modeSpeedPerLevel = SPEED_PER_LEVEL * modeConfig.speedMult;
@@ -148,6 +168,9 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [rocketSkinLevel, setRocketSkinLevel] = useState(1);
+  const [modeShopHint, setModeShopHint] = useState<string | null>(null);
+  const [hasNeonSkin, setHasNeonSkin] = useState(false);
+  const [hasSyncedShopState, setHasSyncedShopState] = useState(false);
 
   const statusText = useMemo(() => {
     if (gameState === "ready") {
@@ -163,6 +186,20 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
   }, [gameState]);
 
   const rocketVisual = useMemo(() => {
+    const baseScale = rocketSkinLevel >= 3 ? 1.1 : 1;
+
+    if (hasNeonSkin) {
+      return {
+        frameClass:
+          "border-fuchsia-200/60 bg-fuchsia-300/20 shadow-[0_10px_24px_rgba(232,121,249,0.38)]",
+        iconClass: "text-3xl leading-none drop-shadow-[0_0_14px_rgba(34,211,238,0.82)]",
+        scale: baseScale,
+        trailColor: "rgba(34, 211, 238, 0.95)",
+        trailShadow: "0 0 14px rgba(232, 121, 249, 0.72)",
+        trailOpacity: 1,
+      };
+    }
+
     if (rocketSkinLevel >= 3) {
       return {
         frameClass:
@@ -196,11 +233,18 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
       trailShadow: "0 0 8px rgba(103, 232, 249, 0.28)",
       trailOpacity: 0.72,
     };
-  }, [rocketSkinLevel]);
+  }, [hasNeonSkin, rocketSkinLevel]);
 
   const syncRocketSkinLevel = useCallback(() => {
     const unlocked = getUnlockedFeatures();
     setRocketSkinLevel(unlocked.rocketSkinLevel);
+  }, []);
+
+  const syncShopState = useCallback(() => {
+    const owned = getPurchases();
+    setPurchases(owned);
+    setHasNeonSkin(owned.has("skin_neon"));
+    setHasSyncedShopState(true);
   }, []);
 
   const clearConfettiTimer = useCallback(() => {
@@ -283,6 +327,24 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
     setSpeedDisplay(modeBaseSpeed);
     setHasNewBest(false);
   }, [clearConfettiTimer, clearCrashTimers, getPlayerGroundY, modeBaseSpeed, modeSpawnMult]);
+
+  useEffect(() => {
+    if (!hasSyncedShopState) {
+      return;
+    }
+    if (isModeUnlocked(selectedModeId, purchases)) {
+      return;
+    }
+    setSelectedModeId("normal");
+    setModeShopHint("Buy in Shop to unlock this mode.");
+  }, [hasSyncedShopState, purchases, selectedModeId]);
+
+  useEffect(() => {
+    stopLoop();
+    resetRound();
+    gameStateRef.current = "ready";
+    setGameState("ready");
+  }, [modeConfig.id, resetRound, stopLoop]);
 
   const finishRound = useCallback(() => {
     gameStateRef.current = "game_over";
@@ -559,6 +621,19 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
     setPlayerTilt(-15);
   }, [getPlayerGroundY, startRound]);
 
+  const handleModeChange = (nextModeId: string) => {
+    const mode = SPACE_RUNNER_MODES.find((entry) => entry.id === nextModeId);
+    if (!mode) {
+      return;
+    }
+    if (!isModeUnlocked(nextModeId, purchases)) {
+      setModeShopHint("Buy in Shop to unlock this mode.");
+      return;
+    }
+    setModeShopHint(null);
+    setSelectedModeId(nextModeId);
+  };
+
   const handleAreaPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (!event.isPrimary || event.button > 0) {
       return;
@@ -643,6 +718,7 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
 
     const syncUnlockState = () => {
       syncRocketSkinLevel();
+      syncShopState();
     };
 
     syncUnlockState();
@@ -651,7 +727,7 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
     return () => {
       window.removeEventListener("storage", syncUnlockState);
     };
-  }, [syncRocketSkinLevel]);
+  }, [syncRocketSkinLevel, syncShopState]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -770,7 +846,26 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
             <button type="button" onClick={startRound} className={arcade.primaryButton}>
               Play Again
             </button>
+            <label className={`${arcade.chip} gap-2`}>
+              <span className="font-semibold text-slate-200">Mode</span>
+              <select
+                value={selectedModeId}
+                onChange={(event) => handleModeChange(event.target.value)}
+                className="h-9 min-w-[148px] rounded-lg border border-slate-200/25 bg-slate-900 px-3 text-sm font-semibold text-slate-100 outline-none focus:border-violet-300/60"
+                aria-label="Space Runner mode"
+              >
+                {SPACE_RUNNER_MODES.map((mode) => {
+                  const locked = !isModeUnlocked(mode.id, purchases);
+                  return (
+                    <option key={mode.id} value={mode.id} disabled={locked}>
+                      {locked ? `🔒 ${mode.label}` : mode.label}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
             <span className={arcade.chip}>Tap anywhere to jump</span>
+            {modeShopHint ? <span className={arcade.chip}>{modeShopHint}</span> : null}
           </div>
         </div>
 

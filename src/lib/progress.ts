@@ -86,6 +86,21 @@ export function addStars(amount: number): AddStarsResult {
   return { success: true, awarded };
 }
 
+export function spendStars(amount: number): boolean {
+  const normalizedAmount = Math.max(0, Math.floor(amount));
+  if (normalizedAmount <= 0) {
+    return false;
+  }
+
+  const current = getStarsTotal();
+  if (current < normalizedAmount) {
+    return false;
+  }
+
+  writeNumber(STARS_TOTAL_KEY, current - normalizedAmount);
+  return true;
+}
+
 export function getStreak(): number {
   return readNumber(STREAK_COUNT_KEY);
 }

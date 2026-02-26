@@ -10,6 +10,7 @@ import {
   getStreak,
   resetProgress,
 } from "@/src/lib/progress";
+import { getPurchases, resetPurchases } from "@/src/lib/shop";
 import { safeGet, safeSet, safeSetJSON } from "@/src/lib/storageGuard";
 import { getTimeState, resetIfNewDay, resetTodayUsage } from "@/src/lib/timeLimit";
 import { getTrialStatus, resetTrial } from "@/src/lib/trial";
@@ -24,6 +25,7 @@ type ConfirmAction =
   | "reset_timer"
   | "reset_progress"
   | "reset_metrics"
+  | "reset_purchases"
   | "reset_everything"
   | "import_json";
 
@@ -53,6 +55,9 @@ type DebugSnapshot = {
     sessions: number;
     totalLaunches: number;
     totalPlaySeconds: number;
+  };
+  purchases: {
+    count: number;
   };
 };
 
@@ -240,6 +245,9 @@ export default function DebugPage() {
         totalLaunches: metrics.global.totalGameLaunches,
         totalPlaySeconds: metrics.global.totalPlaySeconds,
       },
+      purchases: {
+        count: getPurchases().size,
+      },
     });
   }, []);
 
@@ -325,6 +333,9 @@ export default function DebugPage() {
     } else if (pendingAction === "reset_metrics") {
       metricsResetAll();
       setMessage("Metrics reset.");
+    } else if (pendingAction === "reset_purchases") {
+      resetPurchases();
+      setMessage("Shop purchases reset.");
     } else if (pendingAction === "reset_everything") {
       clearAllPPKeys();
       setMessage("All pp_* keys removed.");
@@ -447,6 +458,7 @@ export default function DebugPage() {
               Play time: {formatDuration(snapshot?.metrics.totalPlaySeconds ?? 0)}
             </p>
           </div>
+          <p className="mt-2 text-sm text-slate-300">Shop purchases: {snapshot?.purchases.count ?? 0}</p>
         </article>
       </section>
 
@@ -464,6 +476,9 @@ export default function DebugPage() {
           </button>
           <button type="button" onClick={() => openConfirmModal("reset_metrics")} className={arcade.secondaryButton}>
             Reset Metrics
+          </button>
+          <button type="button" onClick={() => openConfirmModal("reset_purchases")} className={arcade.secondaryButton}>
+            Reset Purchases
           </button>
           <button type="button" onClick={() => openConfirmModal("reset_everything")} className={arcade.dangerButton}>
             Reset EVERYTHING

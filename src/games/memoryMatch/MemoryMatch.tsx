@@ -6,6 +6,7 @@ import ConfettiBurst from "@/src/components/ConfettiBurst";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { getPurchases } from "@/src/lib/shop";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { safeGet, safeSet } from "@/src/lib/storageGuard";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
@@ -71,9 +72,13 @@ const MISMATCH_FLIP_BACK_MS = 650;
 const FEEDBACK_DURATION_MS = 620;
 const ELAPSED_TICK_MS = 100;
 
-const SELECTABLE_THEME_IDS = new Set(["space", "animals", "shapes", "food"]);
+const SELECTABLE_THEME_IDS = new Set(["space", "animals", "ocean"]);
 const THEME_OPTIONS = MEMORY_MATCH_THEMES.filter((theme) => SELECTABLE_THEME_IDS.has(theme.id));
 const DEFAULT_THEME_ID = THEME_OPTIONS.find((theme) => theme.id === "space")?.id ?? "space";
+const THEME_PURCHASE_REQUIREMENTS: Record<string, string | undefined> = {
+  animals: "theme_animals",
+  ocean: "theme_ocean",
+};
 
 function fisherYatesShuffle<T>(items: T[]): T[] {
   const shuffled = [...items];
@@ -202,6 +207,8 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
   const [memoryHardUnlocked, setMemoryHardUnlocked] = useState(false);
   const [bestMoves, setBestMoves] = useState<BestRecord>(createEmptyBestRecord);
   const [bestTimes, setBestTimes] = useState<BestRecord>(createEmptyBestRecord);
+  const [purchases, setPurchases] = useState<Set<string>>(() => new Set());
+  const [themeLockHint, setThemeLockHint] = useState<string | null>(null);
 
   const cardsRef = useRef<Card[]>(cards);
   const flippedIndexesRef = useRef<number[]>(flippedIndexes);
@@ -226,6 +233,15 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
   const totalPairs = cardValues[difficulty].length;
   const currentBestMoves = bestMoves[difficulty];
   const currentBestTime = bestTimes[difficulty];
+  const unlockedThemeIds = useMemo(() => {
+    const ids = new Set<string>([DEFAULT_THEME_ID]);
+    for (const [themeId, purchaseId] of Object.entries(THEME_PURCHASE_REQUIREMENTS)) {
+      if (!purchaseId || purchases.has(purchaseId)) {
+        ids.add(themeId);
+      }
+    }
+    return ids;
+  }, [purchases]);
   const currentThemeLabel =
     THEME_OPTIONS.find((option) => option.id === themeId)?.label ?? "Space";
   const gridClass =
@@ -431,9 +447,14 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
     if (!THEME_OPTIONS.some((option) => option.id === nextThemeId)) {
       return;
     }
+    if (!unlockedThemeIds.has(nextThemeId)) {
+      setThemeLockHint("Buy in Shop to unlock this theme.");
+      return;
+    }
     if (nextThemeId === themeId) {
       return;
     }
+    setThemeLockHint(null);
     setThemeId(nextThemeId);
   };
 
@@ -607,6 +628,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
     const syncFromStorage = () => {
       syncUnlockState();
       loadBestRecords();
+      setPurchases(getPurchases());
     };
 
     syncFromStorage();
@@ -622,6 +644,14 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
     setDifficulty("easy");
     resetBoard("easy");
   }, [cardValues, resetBoard]);
+
+  useEffect(() => {
+    if (unlockedThemeIds.has(themeId)) {
+      return;
+    }
+    setThemeId(DEFAULT_THEME_ID);
+    setThemeLockHint("Buy in Shop to unlock this theme.");
+  }, [themeId, unlockedThemeIds]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -708,13 +738,17 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
                 className="h-9 min-w-[120px] rounded-lg border border-slate-200/25 bg-slate-900 px-3 text-sm font-semibold text-slate-100 outline-none focus:border-violet-300/60"
                 aria-label="Theme"
               >
-                {THEME_OPTIONS.map((theme) => (
-                  <option key={theme.id} value={theme.id}>
-                    {theme.label}
-                  </option>
-                ))}
+                {THEME_OPTIONS.map((theme) => {
+                  const locked = !unlockedThemeIds.has(theme.id);
+                  return (
+                    <option key={theme.id} value={theme.id} disabled={locked}>
+                      {locked ? `🔒 ${theme.label}` : theme.label}
+                    </option>
+                  );
+                })}
               </select>
             </label>
+            {themeLockHint ? <span className={arcade.chip}>{themeLockHint}</span> : null}
             <div className="inline-flex rounded-xl border border-slate-200/20 bg-slate-900/90 p-1">
               <button
                 type="button"
