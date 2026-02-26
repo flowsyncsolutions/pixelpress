@@ -234,6 +234,28 @@ export function getGamesByCategory(category: GameCategory): Game[] {
   return GAMES.filter((game) => game.category === category);
 }
 
+export function getLiveGames(): Game[] {
+  return GAMES.filter((game) => game.status === "live");
+}
+
+export function getLiveGamesByCategory(category: GameCategory): Game[] {
+  return getLiveGames().filter((game) => game.category === category);
+}
+
+export function searchGames(games: Game[], query: string): Game[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return games;
+  }
+
+  return games.filter((game) => {
+    const tags = game.tags.join(" ").toLowerCase();
+    const variant = (game.variantLabel ?? "").toLowerCase();
+    const haystack = `${game.title} ${game.description} ${tags} ${variant}`.toLowerCase();
+    return haystack.includes(normalized);
+  });
+}
+
 export function getCategoryCounts(): Record<GameCategory | "all", number> {
   const counts: Record<GameCategory | "all", number> = {
     all: GAMES.length,
