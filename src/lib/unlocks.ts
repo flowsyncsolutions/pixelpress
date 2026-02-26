@@ -1,4 +1,5 @@
 import { getStarsTotal } from "./progress";
+import { STAR_LADDER, getUnlockedIds } from "./starLadder";
 import { safeGet, safeSet } from "./storageGuard";
 
 const LAST_UNLOCK_NOTIFIED_KEY = "pp_last_unlock_notified";
@@ -15,12 +16,11 @@ export type UnlockNotice = {
   description: string;
 };
 
-const UNLOCK_MILESTONES: UnlockNotice[] = [
-  { threshold: 5, title: "New Unlock!", description: "Rocket Skin Level 2" },
-  { threshold: 10, title: "New Unlock!", description: "Memory Normal Unlocked" },
-  { threshold: 20, title: "New Unlock!", description: "Rocket Skin Level 3" },
-  { threshold: 30, title: "New Unlock!", description: "Arcade Challenger" },
-];
+const UNLOCK_MILESTONES: UnlockNotice[] = STAR_LADDER.map((goal) => ({
+  threshold: goal.stars,
+  title: "New Unlock!",
+  description: goal.title,
+}));
 
 export function getTotalStars(): number {
   return getStarsTotal();
@@ -28,11 +28,12 @@ export function getTotalStars(): number {
 
 export function getUnlockedFeatures(): UnlockedFeatures {
   const stars = getTotalStars();
+  const unlocked = new Set(getUnlockedIds(stars));
 
   return {
-    rocketSkinLevel: stars >= 20 ? 3 : stars >= 5 ? 2 : 1,
-    memoryHardUnlocked: stars >= 10,
-    challengeBadgeUnlocked: stars >= 30,
+    rocketSkinLevel: unlocked.has("rocket_skin_3") ? 3 : unlocked.has("rocket_skin_2") ? 2 : 1,
+    memoryHardUnlocked: unlocked.has("memory_normal"),
+    challengeBadgeUnlocked: unlocked.has("arcade_challenger"),
   };
 }
 

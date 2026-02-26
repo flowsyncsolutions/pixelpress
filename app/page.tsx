@@ -8,6 +8,7 @@ import { metricsGetAll } from "@/src/lib/metrics";
 import { resetIfNewDay } from "@/src/lib/timeLimit";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
 import { safeGet, safeSet } from "@/src/lib/storageGuard";
+import { getNextUnlock } from "@/src/lib/starLadder";
 import { type TrialState, getTrialStatus, startTrial } from "@/src/lib/trial";
 import {
   getPendingUnlockNotice,
@@ -26,6 +27,7 @@ export default function Home() {
   const [showChallengeBadge, setShowChallengeBadge] = useState(false);
   const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
   const [trialState, setTrialState] = useState<TrialState>("full");
+  const nextUnlock = getNextUnlock(stars);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -168,6 +170,15 @@ export default function Home() {
               className="inline-flex items-center justify-center rounded-xl border border-slate-200/35 bg-slate-900/70 px-6 py-3.5 text-base font-semibold text-slate-100 transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-200"
             >
               Parent Mode
+            </Link>
+          </div>
+
+          <div className="mt-3">
+            <Link
+              href="/play"
+              className="inline-flex items-center gap-2 rounded-full border border-cyan-200/35 bg-cyan-300/12 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-300/20"
+            >
+              {nextUnlock ? `Next unlock in ${nextUnlock.remaining} ⭐` : "Unlocked all current rewards"}
             </Link>
           </div>
 

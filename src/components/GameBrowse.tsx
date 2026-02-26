@@ -18,6 +18,7 @@ import { ensureProgressDefaults, getDailySeededItems, getStarsTotal, getStreak }
 import { getTimeState, resetIfNewDay } from "@/src/lib/timeLimit";
 import { type TrialState, getTrialStatus, startTrial } from "@/src/lib/trial";
 import { ACCENT_STYLES, THEME, type AccentTone } from "@/src/lib/theme";
+import { STAR_LADDER, getNextUnlock, getUnlockProgress } from "@/src/lib/starLadder";
 import {
   getPendingUnlockNotice,
   getUnlockedFeatures,
@@ -218,6 +219,7 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
 
   const headingLabel = category === "all" ? "Game Shelf" : `${CATEGORY_META[category].label} Games`;
   const searchResultCountLabel = `${filteredGames.length} ${filteredGames.length === 1 ? "game" : "games"}`;
+  const nextUnlock = getNextUnlock(stars);
   const renderGamesGrid = (gamesToRender: typeof filteredGames) => {
     if (gamesToRender.length === 0) {
       return (
@@ -426,6 +428,71 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
               </div>
             </div>
           </header>
+
+          {category === "all" ? (
+            <section className={`${THEME.surfaces.card} p-4`}>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-black text-slate-100">Unlocks</h2>
+                <span className={`${THEME.surfaces.pill} text-slate-200`}>{stars} stars</span>
+              </div>
+
+              {nextUnlock ? (
+                <div className="mb-4 rounded-xl border border-violet-200/25 bg-violet-300/10 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-violet-100/90">Next unlock</p>
+                  <p className="mt-1 text-sm font-bold text-slate-100">{nextUnlock.goal.title}</p>
+                  <p className="mt-1 text-xs text-slate-300">{nextUnlock.goal.description}</p>
+                  <div className="mt-2 flex items-center justify-between text-xs text-slate-200">
+                    <span>{nextUnlock.remaining} stars to go</span>
+                    <span>{Math.round(getUnlockProgress(stars, nextUnlock.goal.stars) * 100)}%</span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-900/80">
+                    <div
+                      className="h-full rounded-full bg-violet-300 transition-all"
+                      style={{ width: `${Math.round(getUnlockProgress(stars, nextUnlock.goal.stars) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 rounded-xl border border-emerald-200/30 bg-emerald-300/12 p-3">
+                  <p className="text-sm font-bold text-emerald-100">Unlocked</p>
+                  <p className="mt-1 text-xs text-slate-200">You unlocked everything in the ladder so far.</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {STAR_LADDER.slice(0, 4).map((goal) => {
+                  const progressPercent = Math.round(getUnlockProgress(stars, goal.stars) * 100);
+                  const unlocked = stars >= goal.stars;
+                  const remaining = Math.max(0, goal.stars - stars);
+                  const statusLabel = unlocked ? "Unlocked" : remaining <= 2 ? "Almost there" : "Next unlock";
+
+                  return (
+                    <div key={goal.id} className="rounded-xl border border-slate-200/15 bg-slate-950/70 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-100">{goal.title}</p>
+                        <span
+                          className={`text-xs font-semibold ${
+                            unlocked ? "text-emerald-100" : remaining <= 2 ? "text-amber-100" : "text-slate-300"
+                          }`}
+                        >
+                          {unlocked ? `✅ ${statusLabel}` : `${statusLabel} • ${goal.stars}⭐`}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-300">{goal.description}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-900/80">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            unlocked ? "bg-emerald-300" : remaining <= 2 ? "bg-amber-300" : "bg-cyan-300"
+                          }`}
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           {showDailyPicks && category === "all" ? (
             <section className={`${THEME.surfaces.card} p-4`}>
