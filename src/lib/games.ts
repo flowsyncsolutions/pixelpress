@@ -28,13 +28,14 @@ export type Game = {
 export const ALLOWED_IFRAME_HOSTS: string[] = [];
 
 // To add a real game cover image:
-// 1) drop `public/covers/{slug}.png`
-// 2) set `cover: "/covers/{slug}.png"` on that game entry below.
+// 1) drop `public/covers/{slug}.svg` (or .png/.webp)
+// 2) set `cover: "/covers/{slug}.svg"` on that game entry below.
 const BASE_GAMES: Game[] = [
   {
     slug: "space-runner",
     title: "Space Runner",
     icon: "🚀",
+    cover: "/covers/space-runner.svg",
     accent: "cyan",
     featured: true,
     description: "Jump over incoming asteroids in a speedy space sprint.",
@@ -48,6 +49,7 @@ const BASE_GAMES: Game[] = [
     slug: "reaction-tap",
     title: "Reaction Tap",
     icon: "⚡",
+    cover: "/covers/reaction-tap.svg",
     accent: "amber",
     featured: true,
     description: "Wait for green, then tap fast.",
@@ -61,7 +63,7 @@ const BASE_GAMES: Game[] = [
     slug: "memory-match",
     title: "Memory Match",
     icon: "🧠",
-    cover: "/covers/memory-match.png",
+    cover: "/covers/memory-match.svg",
     accent: "violet",
     featured: true,
     description: "Flip cards and find all pairs with fewer moves.",
@@ -75,7 +77,7 @@ const BASE_GAMES: Game[] = [
     slug: "tic-tac-toe",
     title: "Tic Tac Toe",
     icon: "⭕",
-    cover: "/covers/tic-tac-toe.png",
+    cover: "/covers/tic-tac-toe.svg",
     accent: "amber",
     featured: true,
     description: "Classic 3x3 strategy rounds for quick wins.",
@@ -91,6 +93,7 @@ const SPACE_RUNNER_VARIANTS: Game[] = SPACE_RUNNER_MODES.map((mode) => ({
   slug: `space-runner-${mode.id}`,
   title: `Space Runner: ${mode.label}`,
   icon: "🚀",
+  cover: "/covers/space-runner.svg",
   accent: "cyan",
   featured: false,
   description: `Dodge asteroids in ${mode.label.toLowerCase()} mode.`,
