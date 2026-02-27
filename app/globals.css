@@ -4,6 +4,7 @@
   --background: #111827;
   --foreground: #f4f8ff;
   --accent: #8b5cf6;
+  --pp-header-h: 64px;
 }
 
 @theme inline {

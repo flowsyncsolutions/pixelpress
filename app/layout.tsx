@@ -47,17 +47,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
       >
-        <header className="sticky top-0 z-20 border-b border-slate-200/10 bg-slate-950/85 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
+        <header className="fixed inset-x-0 top-0 z-50 h-[var(--pp-header-h)] border-b border-slate-200/10 bg-slate-950/95 backdrop-blur supports-[backdrop-filter]:bg-slate-950/85">
+          <div className="mx-auto flex h-full w-full max-w-6xl items-center justify-between gap-2 px-4">
             <Link href="/" className="text-lg font-semibold tracking-tight text-slate-100">
               PixelPress
             </Link>
-            <nav className="flex items-center gap-2 text-xs sm:gap-4 sm:text-sm">
+            <nav className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden whitespace-nowrap text-sm sm:gap-2">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-md px-2 py-1 text-slate-300 transition hover:bg-slate-800 hover:text-slate-100"
+                  className="shrink-0 rounded-md px-2 py-1 text-slate-300 transition hover:bg-slate-800 hover:text-slate-100"
                 >
                   {item.label}
                 </Link>
@@ -65,7 +65,7 @@ export default function RootLayout({
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl px-4 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl px-4 pb-8 pt-[calc(var(--pp-header-h)+2rem)]">{children}</main>
       </body>
     </html>
   );

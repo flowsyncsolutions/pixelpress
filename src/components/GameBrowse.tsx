@@ -402,7 +402,7 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
       <PlaySoftGate />
       <ExitGate />
 
-      <div className="sticky top-[70px] z-10 rounded-2xl border border-slate-200/12 bg-slate-950/90 p-2 shadow-[0_10px_24px_rgba(2,6,23,0.35)] backdrop-blur">
+      <div className="sticky top-[var(--pp-header-h)] z-10 rounded-2xl border border-slate-200/12 bg-slate-950/90 p-2 shadow-[0_10px_24px_rgba(2,6,23,0.35)] backdrop-blur">
         <div className="pp-scrollbar-hidden flex gap-2 overflow-x-auto whitespace-nowrap">
           {CATEGORY_ORDER.map((entry) => {
             const meta = CATEGORY_META[entry];
