@@ -15,6 +15,7 @@ import ConfettiBurst from "@/src/components/ConfettiBurst";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { addXP } from "@/src/lib/level";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { getPurchases } from "@/src/lib/shop";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
@@ -351,6 +352,8 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
     setGameState("game_over");
     setIsShaking(false);
     setShowCrashFlash(false);
+
+    addXP(10);
 
     const finalScore = scoreRef.current;
     if (finalScore > highScoreRef.current) {

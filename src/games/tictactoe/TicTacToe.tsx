@@ -6,6 +6,7 @@ import ConfettiBurst from "@/src/components/ConfettiBurst";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { addXP } from "@/src/lib/level";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { getTimeState, resetIfNewDay, startSessionTick } from "@/src/lib/timeLimit";
 
@@ -241,6 +242,7 @@ export default function TicTacToe({ onComplete }: TicTacToeProps) {
       return;
     }
 
+    addXP(10);
     addStars(1);
     markPlayedToday();
     hasAwardedWinRef.current = true;

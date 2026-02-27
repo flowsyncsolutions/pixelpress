@@ -6,6 +6,7 @@ import ConfettiBurst from "@/src/components/ConfettiBurst";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
+import { addXP } from "@/src/lib/level";
 import { getPurchases } from "@/src/lib/shop";
 import { addStars, markPlayedToday } from "@/src/lib/progress";
 import { safeGet, safeSet } from "@/src/lib/storageGuard";
@@ -548,6 +549,7 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
         }, 900);
 
         if (!hasAwardedWinRef.current) {
+          addXP(15);
           addStars(1);
           markPlayedToday();
           syncUnlockState();

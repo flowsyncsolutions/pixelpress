@@ -14,6 +14,7 @@ import {
   searchGames,
 } from "@/src/lib/games";
 import { metricsGetAll, metricsSessionStart } from "@/src/lib/metrics";
+import { type LevelData, getLevelData, getPendingLevelUp, markLevelUpNotified } from "@/src/lib/level";
 import { ensureProgressDefaults, getDailySeededItems, getStarsTotal, getStreak } from "@/src/lib/progress";
 import {
   type StarCapState,
@@ -82,6 +83,14 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
     capped: false,
   });
   const [showStarCapToast, setShowStarCapToast] = useState(false);
+  const [levelData, setLevelData] = useState<LevelData>({
+    level: 1,
+    xpTotal: 0,
+    xpIntoLevel: 0,
+    xpForNextLevel: 50,
+    progressPercent: 0,
+  });
+  const [levelUpNotice, setLevelUpNotice] = useState<number | null>(null);
   const lastStarsSeenRef = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -129,6 +138,7 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
       metricsGetAll();
       getUnlockedFeatures();
       getStarCapState();
+      getLevelData();
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -180,6 +190,15 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
       const time = getTimeState();
       setTimeEnabled(time.enabled);
       setRemainingSeconds(time.remainingSeconds);
+
+      const nextLevelData = getLevelData();
+      setLevelData(nextLevelData);
+
+      const pendingLevel = getPendingLevelUp();
+      if (pendingLevel !== null) {
+        setLevelUpNotice(pendingLevel);
+        markLevelUpNotified(pendingLevel);
+      }
     };
 
     syncProgress();
@@ -206,6 +225,14 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
     const timer = window.setTimeout(() => setShowStarCapToast(false), 2600);
     return () => window.clearTimeout(timer);
   }, [showStarCapToast]);
+
+  useEffect(() => {
+    if (!levelUpNotice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setLevelUpNotice(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [levelUpNotice]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -363,6 +390,14 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
           </div>
         </div>
       ) : null}
+      {levelUpNotice ? (
+        <div className="pointer-events-none fixed left-1/2 top-48 z-50 w-[min(92vw,380px)] -translate-x-1/2">
+          <div className="rounded-2xl border border-violet-200/50 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-100">Level Up!</p>
+            <p className="mt-1 text-sm font-semibold text-slate-100">You reached Level {levelUpNotice}</p>
+          </div>
+        </div>
+      ) : null}
 
       <PlaySoftGate />
       <ExitGate />
@@ -484,6 +519,21 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
                       : `🗓️ Full Trial: ${trialDaysRemaining} days left`}
                   </span>
                 )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-violet-200/25 bg-violet-300/10 p-3 sm:max-w-[360px]">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold text-violet-100">Level {levelData.level}</p>
+                <p className="text-xs font-semibold text-slate-200">
+                  {levelData.xpIntoLevel} / {levelData.xpForNextLevel} XP
+                </p>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-900/80">
+                <div
+                  className="h-full rounded-full bg-violet-300 transition-all"
+                  style={{ width: `${Math.round(levelData.progressPercent)}%` }}
+                />
               </div>
             </div>
           </header>

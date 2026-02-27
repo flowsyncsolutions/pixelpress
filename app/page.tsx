@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAllGames } from "@/src/lib/games";
+import { type LevelData, getLevelData, getPendingLevelUp, markLevelUpNotified } from "@/src/lib/level";
 import { ensureProgressDefaults, getStarsTotal, getStreak } from "@/src/lib/progress";
 import { metricsGetAll } from "@/src/lib/metrics";
 import { resetIfNewDay } from "@/src/lib/timeLimit";
@@ -27,6 +28,14 @@ export default function Home() {
   const [showChallengeBadge, setShowChallengeBadge] = useState(false);
   const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
   const [trialState, setTrialState] = useState<TrialState>("full");
+  const [levelData, setLevelData] = useState<LevelData>({
+    level: 1,
+    xpTotal: 0,
+    xpIntoLevel: 0,
+    xpForNextLevel: 50,
+    progressPercent: 0,
+  });
+  const [levelUpNotice, setLevelUpNotice] = useState<number | null>(null);
   const nextUnlock = getNextUnlock(stars);
 
   useEffect(() => {
@@ -40,6 +49,7 @@ export default function Home() {
       startTrial();
       metricsGetAll();
       getUnlockedFeatures();
+      getLevelData();
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -56,11 +66,18 @@ export default function Home() {
       setStreak(getStreak());
       setShowChallengeBadge(getUnlockedFeatures().challengeBadgeUnlocked);
       setTrialState(getTrialStatus().state);
+      setLevelData(getLevelData());
 
       const notice = getPendingUnlockNotice(totalStars);
       if (notice) {
         setUnlockNotice(notice);
         markUnlockNoticeSeen(notice.threshold);
+      }
+
+      const pendingLevel = getPendingLevelUp();
+      if (pendingLevel !== null) {
+        setLevelUpNotice(pendingLevel);
+        markLevelUpNotified(pendingLevel);
       }
     };
 
@@ -79,6 +96,14 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [unlockNotice]);
 
+  useEffect(() => {
+    if (!levelUpNotice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setLevelUpNotice(null), 2300);
+    return () => window.clearTimeout(timer);
+  }, [levelUpNotice]);
+
   const completeOnboardingPrompt = () => {
     safeSet(ONBOARDED_KEY, "true");
     setShowOnboardingPrompt(false);
@@ -91,6 +116,14 @@ export default function Home() {
           <div className="rounded-2xl border border-amber-200/50 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-200">{unlockNotice.title}</p>
             <p className="mt-1 text-sm font-semibold text-slate-100">{unlockNotice.description}</p>
+          </div>
+        </div>
+      ) : null}
+      {levelUpNotice ? (
+        <div className="pointer-events-none fixed left-1/2 top-36 z-50 w-[min(92vw,420px)] -translate-x-1/2">
+          <div className="rounded-2xl border border-violet-200/50 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-100">Level Up!</p>
+            <p className="mt-1 text-sm font-semibold text-slate-100">You reached Level {levelUpNotice}</p>
           </div>
         </div>
       ) : null}
@@ -207,6 +240,9 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-100/85">Stars</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <p className="text-3xl font-black text-amber-100">{stars}</p>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-violet-200/45 bg-violet-300/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-violet-100">
+                    Level {levelData.level}
+                  </span>
                   {showChallengeBadge ? (
                     <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-300/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-amber-100">
                       🏅 Arcade Challenger
