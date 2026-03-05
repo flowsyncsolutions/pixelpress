@@ -11,7 +11,7 @@ export type Game = {
   icon: string;
   cover?: string;
   accent: AccentTone;
-  featured: boolean;
+  featured?: boolean;
   description: string;
   tags: string[];
   category: GameCategory;
@@ -83,7 +83,7 @@ const BASE_GAMES: Game[] = [
     icon: "⚡",
     cover: "/covers/reaction-tap.svg",
     accent: "amber",
-    featured: true,
+    featured: false,
     description: "Wait for green, then tap fast.",
     tags: ["kids", "reaction", "arcade"],
     category: "kids",
@@ -111,7 +111,7 @@ const BASE_GAMES: Game[] = [
     icon: "⭕",
     cover: "/covers/tic-tac-toe.svg",
     accent: "amber",
-    featured: true,
+    featured: false,
     description: "Classic 3x3 strategy rounds for quick wins.",
     tags: ["classics", "strategy"],
     category: "classics",
