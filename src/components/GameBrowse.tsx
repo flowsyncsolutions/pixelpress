@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ExitGate from "@/src/components/ExitGate";
 import GameCover from "@/src/components/GameCover";
 import PlaySoftGate from "@/src/components/PlaySoftGate";
@@ -9,8 +10,10 @@ import { arcade } from "@/src/lib/arcadeSkin";
 import {
   type GameCategory,
   getAllGames,
+  getFeaturedLiveGames,
   getLiveGames,
   getLiveGamesByCategory,
+  getRandomLiveGame,
   searchGames,
 } from "@/src/lib/games";
 import { metricsGetAll, metricsSessionStart } from "@/src/lib/metrics";
@@ -67,6 +70,7 @@ function getVariantBadgeText(game: { variantOf?: string; variantLabel?: string }
 }
 
 export default function GameBrowse({ category = "all", showDailyPicks = false }: GameBrowseProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [stars, setStars] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -107,11 +111,17 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
     () => allGames.filter((game) => game.status === "coming_soon"),
     [allGames],
   );
-  const featuredGames = useMemo(
-    () => allLiveGames.filter((game) => game.featured),
-    [allLiveGames],
-  );
+  const featuredGames = useMemo(() => getFeaturedLiveGames(), []);
   const dailyPicks = useMemo(() => getDailySeededItems(allLiveGames, 3), [allLiveGames]);
+  const quickPlaySlug = useMemo(() => {
+    if (showDailyPicks && category === "all" && dailyPicks.length > 0) {
+      return dailyPicks[0]?.slug;
+    }
+    if (featuredGames.length > 0) {
+      return featuredGames[0]?.slug;
+    }
+    return allLiveGames[0]?.slug;
+  }, [allLiveGames, category, dailyPicks, featuredGames, showDailyPicks]);
 
   const counts = useMemo(() => {
     const nextCounts: Record<BrowseCategory, number> = {
@@ -287,7 +297,26 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
 
   const headingLabel = category === "all" ? "Game Shelf" : `${CATEGORY_META[category].label} Games`;
   const searchResultCountLabel = `${filteredGames.length} ${filteredGames.length === 1 ? "game" : "games"}`;
+  const quickPlayTitle = useMemo(() => {
+    const selected = allLiveGames.find((game) => game.slug === quickPlaySlug);
+    return selected?.title ?? "No games available";
+  }, [allLiveGames, quickPlaySlug]);
   const nextUnlock = getNextUnlock(stars);
+  const handlePlayNow = () => {
+    if (!quickPlaySlug) {
+      return;
+    }
+    router.push(`/play/${quickPlaySlug}`);
+  };
+  const handleSurpriseMe = () => {
+    const random = getRandomLiveGame();
+    const fallbackSlug = quickPlaySlug ?? allLiveGames[0]?.slug;
+    const slug = random?.slug ?? fallbackSlug;
+    if (!slug) {
+      return;
+    }
+    router.push(`/play/${slug}`);
+  };
   const renderGamesGrid = (gamesToRender: typeof filteredGames) => {
     if (gamesToRender.length === 0) {
       return (
@@ -583,6 +612,38 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
                   <p className="mt-2 text-sm font-black text-slate-100">Offline Ready</p>
                   <p className="mt-1 text-xs text-slate-300">Install and play like a real app.</p>
                 </article>
+              </div>
+            </section>
+          ) : null}
+
+          {showDailyPicks && category === "all" ? (
+            <section className={`${THEME.surfaces.card} p-4`}>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-black text-slate-100">Quick Play</h2>
+                <span className={`${THEME.surfaces.pill} border-violet-200/45 bg-violet-300/12 text-violet-100`}>
+                  Start instantly
+                </span>
+              </div>
+              <p className="mb-4 text-sm text-slate-300">Start instantly — no scrolling.</p>
+              <p className="mb-4 text-xs font-semibold text-slate-300">Play Now: {quickPlayTitle}</p>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={handlePlayNow}
+                  disabled={!quickPlaySlug}
+                  className={`${arcade.primaryButton} h-12 w-full text-base disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Play Now
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSurpriseMe}
+                  disabled={!allLiveGames.length}
+                  className={`${arcade.secondaryButton} h-12 w-full text-base disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Surprise Me
+                </button>
               </div>
             </section>
           ) : null}

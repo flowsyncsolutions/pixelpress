@@ -273,6 +273,24 @@ export function getLiveGames(): Game[] {
   return GAMES.filter((game) => game.status === "live");
 }
 
+export function getFeaturedLiveGames(): Game[] {
+  const featured = getLiveGames().filter((game) => game.featured);
+  const preferred = featured.find((game) => game.slug === "space-runner");
+  if (!preferred) {
+    return featured;
+  }
+  return [preferred, ...featured.filter((game) => game.slug !== preferred.slug)];
+}
+
+export function getRandomLiveGame(excludedSlugs: string[] = []): Game | undefined {
+  const excluded = new Set(excludedSlugs);
+  const pool = getLiveGames().filter((game) => !excluded.has(game.slug));
+  if (pool.length === 0) {
+    return undefined;
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export function getLiveGamesByCategory(category: GameCategory): Game[] {
   return getLiveGames().filter((game) => game.category === category);
 }
