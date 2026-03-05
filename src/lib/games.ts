@@ -17,7 +17,7 @@ export type Game = {
   category: GameCategory;
   status: "live" | "coming_soon";
   embedType: "internal" | "iframe";
-  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch" | "reactionTap";
+  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch" | "reactionTap" | "whackAMole";
   embedSrc?: string;
   variantOf?: string;
   variantId?: string;
@@ -44,6 +44,19 @@ const BASE_GAMES: Game[] = [
     status: "live",
     embedType: "internal",
     internalEngine: "spaceRunner",
+  },
+  {
+    slug: "whack-a-mole",
+    title: "Whack-a-Mole",
+    icon: "🐹",
+    accent: "emerald",
+    featured: true,
+    description: "Tap the mole as fast as you can!",
+    tags: ["kids", "arcade", "tap"],
+    category: "kids",
+    status: "live",
+    embedType: "internal",
+    internalEngine: "whackAMole",
   },
   {
     slug: "reaction-tap",

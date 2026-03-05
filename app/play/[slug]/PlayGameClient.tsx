@@ -19,6 +19,7 @@ import MemoryMatch from "@/src/games/memoryMatch/MemoryMatch";
 import ReactionTap from "@/src/games/reactionTap/ReactionTap";
 import SpaceRunner from "@/src/games/spaceRunner/SpaceRunner";
 import TicTacToe from "@/src/games/tictactoe/TicTacToe";
+import WhackAMole from "@/src/games/whackAMole/WhackAMole";
 
 type PlayGameClientProps = {
   game: Game;
@@ -146,6 +147,8 @@ export default function PlayGameClient({ game }: PlayGameClientProps) {
             </div>
           ) : game.internalEngine === "reactionTap" ? (
             <ReactionTap onComplete={handleComplete} />
+          ) : game.internalEngine === "whackAMole" ? (
+            <WhackAMole onComplete={handleComplete} />
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-200/25 bg-slate-900/85 p-10 text-center text-sm text-slate-200">
               Internal game engine coming soon.
