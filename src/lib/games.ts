@@ -17,7 +17,13 @@ export type Game = {
   category: GameCategory;
   status: "live" | "coming_soon";
   embedType: "internal" | "iframe";
-  internalEngine?: "tictactoe" | "spaceRunner" | "memoryMatch" | "reactionTap" | "whackAMole";
+  internalEngine?:
+    | "tictactoe"
+    | "spaceRunner"
+    | "memoryMatch"
+    | "reactionTap"
+    | "whackAMole"
+    | "balloonPop";
   embedSrc?: string;
   variantOf?: string;
   variantId?: string;
@@ -57,6 +63,19 @@ const BASE_GAMES: Game[] = [
     status: "live",
     embedType: "internal",
     internalEngine: "whackAMole",
+  },
+  {
+    slug: "balloon-pop",
+    title: "Balloon Pop",
+    icon: "🎈",
+    accent: "rose",
+    featured: true,
+    description: "Pop balloons before they float away.",
+    tags: ["kids", "arcade", "tap"],
+    category: "kids",
+    status: "live",
+    embedType: "internal",
+    internalEngine: "balloonPop",
   },
   {
     slug: "reaction-tap",
