@@ -471,6 +471,122 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
         </section>
       ) : (
         <>
+          {showDailyPicks && category === "all" && featuredGames.length > 0 ? (
+            <section className={`${THEME.surfaces.card} p-4`}>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-black text-slate-100">Featured Games</h2>
+                <span className={`${THEME.surfaces.pill} border-violet-200/45 bg-violet-300/12 text-violet-100`}>
+                  Curated picks
+                </span>
+              </div>
+
+              <div className="flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible xl:grid-cols-4">
+                {featuredGames.map((game) => {
+                  const accent = ACCENT_STYLES[game.accent];
+                  const variantBadge = getVariantBadgeText(game);
+                  return (
+                    <Link
+                      key={game.slug}
+                      href={`/play/${game.slug}`}
+                      className={`group w-[280px] shrink-0 overflow-hidden rounded-2xl border border-slate-100/12 bg-slate-900/88 shadow-[0_10px_28px_rgba(2,6,23,0.38)] transition hover:-translate-y-0.5 lg:w-auto ${accent.tileGlow}`}
+                    >
+                      <div className={`h-1.5 ${accent.ribbon}`} />
+                      <div className="relative aspect-[16/9]">
+                        <GameCover
+                          title={game.title}
+                          icon={game.icon}
+                          accent={game.accent}
+                          cover={game.cover}
+                        />
+                      </div>
+
+                      <div className="p-5">
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-xl ${accent.icon}`}
+                            >
+                              <span aria-hidden="true">{game.icon}</span>
+                            </div>
+                            <div>
+                              <p className="text-lg font-semibold text-white">{game.title}</p>
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                <span className={`${THEME.surfaces.pill} inline-flex text-slate-100`}>
+                                  {CATEGORY_META[game.category].icon} {CATEGORY_META[game.category].label}
+                                </span>
+                                {variantBadge ? (
+                                  <span className={`${THEME.surfaces.pill} border-cyan-200/45 bg-cyan-300/12 text-cyan-100`}>
+                                    {variantBadge}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                          <span
+                            className={`${THEME.surfaces.badge} border-violet-200/45 bg-violet-300/15 text-violet-100`}
+                          >
+                            Featured
+                          </span>
+                        </div>
+
+                        <p className="mb-4 text-sm text-slate-300">{game.description}</p>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-200">Tap to launch</span>
+                          <span className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${accent.button}`}>
+                            Play
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {showDailyPicks && category === "all" ? (
+            <section className={`${THEME.surfaces.card} p-4`}>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-black text-slate-100">Why Parents Love PixelPress</h2>
+                <span className={`${THEME.surfaces.pill} border-cyan-200/45 bg-cyan-300/10 text-cyan-100`}>
+                  Parent trusted
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <article className="rounded-2xl border border-slate-200/18 bg-slate-900/86 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_20px_rgba(2,6,23,0.34)]">
+                  <p className="text-3xl leading-none" aria-hidden="true">
+                    🛡️
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-100">No Ads</p>
+                  <p className="mt-1 text-xs text-slate-300">Kids play without interruptions.</p>
+                </article>
+                <article className="rounded-2xl border border-slate-200/18 bg-slate-900/86 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_20px_rgba(2,6,23,0.34)]">
+                  <p className="text-3xl leading-none" aria-hidden="true">
+                    🔒
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-100">Safe Content</p>
+                  <p className="mt-1 text-xs text-slate-300">Only simple, kid-friendly games.</p>
+                </article>
+                <article className="rounded-2xl border border-slate-200/18 bg-slate-900/86 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_20px_rgba(2,6,23,0.34)]">
+                  <p className="text-3xl leading-none" aria-hidden="true">
+                    ⏱️
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-100">Time Limits</p>
+                  <p className="mt-1 text-xs text-slate-300">Parents control screen time.</p>
+                </article>
+                <article className="rounded-2xl border border-slate-200/18 bg-slate-900/86 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_20px_rgba(2,6,23,0.34)]">
+                  <p className="text-3xl leading-none" aria-hidden="true">
+                    📴
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-100">Offline Ready</p>
+                  <p className="mt-1 text-xs text-slate-300">Install and play like a real app.</p>
+                </article>
+              </div>
+            </section>
+          ) : null}
+
           <header className={`${THEME.surfaces.card} p-4`}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -609,80 +725,6 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
                   You earned all your stars for today. Come back tomorrow ⭐
                 </p>
               ) : null}
-            </section>
-          ) : null}
-
-          {showDailyPicks && category === "all" && featuredGames.length > 0 ? (
-            <section className={`${THEME.surfaces.card} p-4`}>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-xl font-black text-slate-100">Featured Games</h2>
-                <span className={`${THEME.surfaces.pill} border-violet-200/45 bg-violet-300/12 text-violet-100`}>
-                  Curated picks
-                </span>
-              </div>
-
-              <div className="flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible xl:grid-cols-4">
-                {featuredGames.map((game) => {
-                  const accent = ACCENT_STYLES[game.accent];
-                  const variantBadge = getVariantBadgeText(game);
-                  return (
-                    <Link
-                      key={game.slug}
-                      href={`/play/${game.slug}`}
-                      className={`group w-[280px] shrink-0 overflow-hidden rounded-2xl border border-slate-100/12 bg-slate-900/88 shadow-[0_10px_28px_rgba(2,6,23,0.38)] transition hover:-translate-y-0.5 lg:w-auto ${accent.tileGlow}`}
-                    >
-                      <div className={`h-1.5 ${accent.ribbon}`} />
-                      <div className="relative aspect-[16/9]">
-                        <GameCover
-                          title={game.title}
-                          icon={game.icon}
-                          accent={game.accent}
-                          cover={game.cover}
-                        />
-                      </div>
-
-                      <div className="p-5">
-                        <div className="mb-3 flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-xl ${accent.icon}`}
-                            >
-                              <span aria-hidden="true">{game.icon}</span>
-                            </div>
-                            <div>
-                              <p className="text-lg font-semibold text-white">{game.title}</p>
-                              <div className="mt-1 flex flex-wrap gap-2">
-                                <span className={`${THEME.surfaces.pill} inline-flex text-slate-100`}>
-                                  {CATEGORY_META[game.category].icon} {CATEGORY_META[game.category].label}
-                                </span>
-                                {variantBadge ? (
-                                  <span className={`${THEME.surfaces.pill} border-cyan-200/45 bg-cyan-300/12 text-cyan-100`}>
-                                    {variantBadge}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                          <span
-                            className={`${THEME.surfaces.badge} border-violet-200/45 bg-violet-300/15 text-violet-100`}
-                          >
-                            Featured
-                          </span>
-                        </div>
-
-                        <p className="mb-4 text-sm text-slate-300">{game.description}</p>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-slate-200">Tap to launch</span>
-                          <span className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${accent.button}`}>
-                            Play
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
             </section>
           ) : null}
 
