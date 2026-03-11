@@ -4,6 +4,7 @@ import type { TouchEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfettiBurst from "@/src/components/ConfettiBurst";
+import FirstPlayOverlay from "@/src/components/FirstPlayOverlay";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
@@ -22,6 +23,7 @@ const MAX_WAIT_MS = 3200;
 const STAR_TARGET_MS = 350;
 const SHAKE_MS = 380;
 const CONFETTI_MS = 900;
+const FIRST_PLAY_KEY = "pp_seen_help_reaction_tap";
 
 function parseBest(raw: string | null): number | null {
   if (!raw) {
@@ -393,6 +395,10 @@ export default function ReactionTap({ onComplete }: ReactionTapProps) {
 
         <div className={`${arcade.panel} relative mt-4`}>
           <ConfettiBurst active={showConfetti} className="rounded-2xl" />
+          <FirstPlayOverlay
+            storageKey={FIRST_PLAY_KEY}
+            text="Wait for green. Then tap as fast as you can."
+          />
 
           <div
             className="flex min-h-[350px] flex-col items-center justify-center gap-6 p-4 text-center sm:min-h-[420px]"

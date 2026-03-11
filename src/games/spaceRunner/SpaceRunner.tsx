@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import ConfettiBurst from "@/src/components/ConfettiBurst";
+import FirstPlayOverlay from "@/src/components/FirstPlayOverlay";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
@@ -81,6 +82,7 @@ const CRASH_SHAKE_DURATION_MS = 250;
 const CRASH_FLASH_DURATION_MS = 150;
 const CRASH_OVERLAY_DELAY_MS = 260;
 const JUMP_DEBOUNCE_MS = 70;
+const FIRST_PLAY_KEY = "pp_seen_help_space_runner";
 const MODE_PURCHASE_REQUIREMENTS: Record<string, string | undefined> = {
   meteor: "mode_meteor",
   lowgrav: "mode_lowgrav",
@@ -874,6 +876,11 @@ export default function SpaceRunner({ onComplete, params }: SpaceRunnerProps) {
 
         <div className={`${arcade.panel} relative mt-4`}>
           <ConfettiBurst active={showConfetti} className="rounded-2xl" />
+          <FirstPlayOverlay
+            storageKey={FIRST_PLAY_KEY}
+            title="How to Play"
+            text="Tap to boost. Avoid asteroids. Survive as long as you can."
+          />
 
           <div
             ref={arenaRef}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfettiBurst from "@/src/components/ConfettiBurst";
+import FirstPlayOverlay from "@/src/components/FirstPlayOverlay";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
@@ -26,6 +27,7 @@ const WIN_LINES: number[][] = [
   [0, 4, 8],
   [2, 4, 6],
 ];
+const FIRST_PLAY_KEY = "pp_seen_help_tic_tac_toe";
 
 const INITIAL_BOARD: Board = Array(9).fill(null);
 
@@ -374,6 +376,10 @@ export default function TicTacToe({ onComplete }: TicTacToeProps) {
 
         <div className={`${arcade.panel} relative mt-4`}>
           <ConfettiBurst active={showConfetti} className="rounded-2xl" />
+          <FirstPlayOverlay
+            storageKey={FIRST_PLAY_KEY}
+            text="Place 3 in a row before the bot does."
+          />
 
           <div className={`grid grid-cols-3 gap-3 ${isAiThinking || isTimeUp ? "pointer-events-none opacity-90" : ""}`}>
             {board.map((cell, index) => {

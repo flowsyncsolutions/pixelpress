@@ -4,6 +4,7 @@ import type { TouchEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfettiBurst from "@/src/components/ConfettiBurst";
+import FirstPlayOverlay from "@/src/components/FirstPlayOverlay";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
@@ -22,6 +23,7 @@ const ROUND_SECONDS = 30;
 const HOLE_COUNT = 9;
 const CONFETTI_MS = 900;
 const TICK_MS = 100;
+const FIRST_PLAY_KEY = "pp_seen_help_whack_a_mole";
 
 const DIFFICULTY_META: Record<
   Difficulty,
@@ -443,6 +445,11 @@ export default function WhackAMole({ onComplete }: WhackAMoleProps) {
           style={{ touchAction: gameState === "playing" ? "none" : "manipulation" }}
           onTouchMove={handleTouchMove}
         >
+          <FirstPlayOverlay
+            storageKey={FIRST_PLAY_KEY}
+            text="Tap the mole before it hides."
+          />
+
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {Array.from({ length: HOLE_COUNT }).map((_, index) => {
               const isActive = activeHole === index;

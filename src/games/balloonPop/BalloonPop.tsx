@@ -4,6 +4,7 @@ import type { TouchEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfettiBurst from "@/src/components/ConfettiBurst";
+import FirstPlayOverlay from "@/src/components/FirstPlayOverlay";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
@@ -41,6 +42,7 @@ const CONFETTI_MS = 900;
 const DEFAULT_NEXT_SPAWN_MS = 450;
 const MIN_SPAWN_MS = 260;
 const MAX_SPAWN_MS = 860;
+const FIRST_PLAY_KEY = "pp_seen_help_balloon_pop";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -428,6 +430,11 @@ export default function BalloonPop({ onComplete }: BalloonPopProps) {
           onClick={handleArenaTap}
           onTouchMove={handleTouchMove}
         >
+          <FirstPlayOverlay
+            storageKey={FIRST_PLAY_KEY}
+            text="Pop balloons before they float away."
+          />
+
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-emerald-500/25 to-transparent" />
 
           {balloons.map((balloon) => {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfettiBurst from "@/src/components/ConfettiBurst";
+import FirstPlayOverlay from "@/src/components/FirstPlayOverlay";
 import GameEndOverlay from "@/src/components/GameEndOverlay";
 import TimeUpOverlay from "@/src/components/TimeUpOverlay";
 import { arcade } from "@/src/lib/arcadeSkin";
@@ -76,6 +77,7 @@ const ELAPSED_TICK_MS = 100;
 const SELECTABLE_THEME_IDS = new Set(["space", "animals", "ocean"]);
 const THEME_OPTIONS = MEMORY_MATCH_THEMES.filter((theme) => SELECTABLE_THEME_IDS.has(theme.id));
 const DEFAULT_THEME_ID = THEME_OPTIONS.find((theme) => theme.id === "space")?.id ?? "space";
+const FIRST_PLAY_KEY = "pp_seen_help_memory_match";
 const THEME_PURCHASE_REQUIREMENTS: Record<string, string | undefined> = {
   animals: "theme_animals",
   ocean: "theme_ocean",
@@ -818,6 +820,10 @@ export default function MemoryMatch({ onComplete }: MemoryMatchProps) {
 
         <div className={`${arcade.panel} relative mt-4`}>
           <ConfettiBurst active={showConfetti} className="rounded-2xl" />
+          <FirstPlayOverlay
+            storageKey={FIRST_PLAY_KEY}
+            text="Tap cards to find matching pairs."
+          />
 
           <div
             className={`grid ${gridClass} ${lockBoard || isTimeUp ? "pointer-events-none" : ""}`}
