@@ -301,6 +301,16 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
     const selected = allLiveGames.find((game) => game.slug === quickPlaySlug);
     return selected?.title ?? "No games available";
   }, [allLiveGames, quickPlaySlug]);
+  const trialDaysLabel = `${trialDaysRemaining} ${trialDaysRemaining === 1 ? "day" : "days"}`;
+  const showTrialBanner = trialState !== "expired";
+  const trialBannerTitle =
+    trialState === "limited"
+      ? "Trial limited mode - upgrade to keep earning stars"
+      : `Your free trial ends in ${trialDaysLabel}`;
+  const trialBannerSubtext =
+    trialState === "limited"
+      ? "Keep stars, unlocks, and the full ad-free experience active."
+      : "Ad-free games. No tracking. Safe for kids.";
   const nextUnlock = getNextUnlock(stars);
   const handlePlayNow = () => {
     if (!quickPlaySlug) {
@@ -489,6 +499,43 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
           </div>
         </label>
       </section>
+
+      {showTrialBanner ? (
+        <section
+          className={`overflow-hidden rounded-2xl border p-4 shadow-[0_12px_28px_rgba(2,6,23,0.34)] sm:p-5 ${
+            trialState === "limited"
+              ? "border-amber-200/45 bg-gradient-to-r from-amber-400/18 via-orange-400/12 to-slate-900/92"
+              : "border-cyan-200/40 bg-gradient-to-r from-cyan-400/18 via-violet-400/12 to-slate-900/92"
+          }`}
+        >
+          <div className="flex min-h-[112px] flex-col justify-between gap-4 sm:min-h-[96px] sm:flex-row sm:items-center">
+            <div className="max-w-2xl">
+              <p
+                className={`text-lg font-black tracking-tight ${
+                  trialState === "limited" ? "text-amber-100" : "text-cyan-100"
+                }`}
+              >
+                {trialBannerTitle}
+              </p>
+              <p className="mt-1 text-sm text-slate-200">{trialBannerSubtext}</p>
+            </div>
+
+            <div className="grid gap-2 sm:min-w-[320px] sm:grid-cols-2">
+              <button
+                type="button"
+                disabled
+                className={`${arcade.primaryButton} h-11 w-full cursor-not-allowed text-sm opacity-90`}
+                title="Billing is not enabled yet."
+              >
+                Keep PixelPress for $3.99/month
+              </button>
+              <Link href="/parent" className={`${arcade.secondaryButton} flex h-11 items-center justify-center text-sm`}>
+                Parent Mode
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {isSearching ? (
         <section className={`${THEME.surfaces.card} p-4`}>
@@ -695,9 +742,7 @@ export default function GameBrowse({ category = "all", showDailyPicks = false }:
                         : "border border-indigo-200/30 bg-indigo-300/10 text-indigo-100"
                     }`}
                   >
-                    {trialState === "limited"
-                      ? `🧾 Limited Trial: ${trialDaysRemaining} days left`
-                      : `🗓️ Full Trial: ${trialDaysRemaining} days left`}
+                    {trialState === "limited" ? "🧾 Limited Trial" : "🗓️ Full Trial"}
                   </span>
                 )}
               </div>

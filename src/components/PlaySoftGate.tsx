@@ -4,23 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { arcade } from "@/src/lib/arcadeSkin";
 import {
-  type TrialState,
   getTrialStatus,
   isTrialOverrideUnlocked,
   startTrial,
 } from "@/src/lib/trial";
 
-type TrialSnapshot = {
-  state: TrialState;
-  daysRemaining: number;
-};
-
 export default function PlaySoftGate() {
   const [blocked, setBlocked] = useState(false);
-  const [trial, setTrial] = useState<TrialSnapshot>({
-    state: "full",
-    daysRemaining: 11,
-  });
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -31,10 +21,6 @@ export default function PlaySoftGate() {
       startTrial();
       const status = getTrialStatus();
       const overrideUnlocked = isTrialOverrideUnlocked();
-      setTrial({
-        state: status.state,
-        daysRemaining: status.daysRemaining,
-      });
       setBlocked(status.state === "expired" && !overrideUnlocked);
     };
 
@@ -60,11 +46,7 @@ export default function PlaySoftGate() {
   }, []);
 
   if (!blocked) {
-    return trial.state === "limited" ? (
-      <div className="sticky top-[64px] z-40 rounded-xl border border-amber-200/40 bg-amber-300/10 px-4 py-2.5 text-sm font-semibold text-amber-100 backdrop-blur">
-        Trial in Limited Mode — Upgrade to keep earning stars.
-      </div>
-    ) : null;
+    return null;
   }
 
   return (
