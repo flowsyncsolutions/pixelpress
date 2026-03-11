@@ -1,298 +1,193 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getAllGames } from "@/src/lib/games";
-import { type LevelData, getLevelData, getPendingLevelUp, markLevelUpNotified } from "@/src/lib/level";
-import { ensureProgressDefaults, getStarsTotal, getStreak } from "@/src/lib/progress";
-import { metricsGetAll } from "@/src/lib/metrics";
-import { resetIfNewDay } from "@/src/lib/timeLimit";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import GameCover from "@/src/components/GameCover";
+import ParentTrustSection from "@/src/components/ParentTrustSection";
+import { arcade } from "@/src/lib/arcadeSkin";
+import { getFeaturedLiveGames } from "@/src/lib/games";
 import { ACCENT_STYLES, THEME } from "@/src/lib/theme";
-import { safeGet, safeSet } from "@/src/lib/storageGuard";
-import { getNextUnlock } from "@/src/lib/starLadder";
-import { type TrialState, getTrialStatus, startTrial } from "@/src/lib/trial";
-import {
-  getPendingUnlockNotice,
-  getUnlockedFeatures,
-  markUnlockNoticeSeen,
-  type UnlockNotice,
-} from "@/src/lib/unlocks";
+import { usePwaInstall } from "@/src/lib/usePwaInstall";
 
-const ONBOARDED_KEY = "pp_onboarded";
+const HOW_IT_WORKS = [
+  {
+    step: "01",
+    title: "Play games",
+    text: "Jump straight into quick arcade games built for kids.",
+  },
+  {
+    step: "02",
+    title: "Set time limits",
+    text: "Parents stay in control with simple built-in limits.",
+  },
+  {
+    step: "03",
+    title: "Relax",
+    text: "No ads, no tracking, and no weird links to worry about.",
+  },
+];
 
 export default function Home() {
-  const previewGames = getAllGames().slice(0, 6);
-  const [stars, setStars] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
-  const [showChallengeBadge, setShowChallengeBadge] = useState(false);
-  const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
-  const [trialState, setTrialState] = useState<TrialState>("full");
-  const [levelData, setLevelData] = useState<LevelData>({
-    level: 1,
-    xpTotal: 0,
-    xpIntoLevel: 0,
-    xpForNextLevel: 50,
-    progressPercent: 0,
-  });
-  const [levelUpNotice, setLevelUpNotice] = useState<number | null>(null);
-  const nextUnlock = getNextUnlock(stars);
+  const router = useRouter();
+  const { canPromptInstall, isInstalled, promptInstall } = usePwaInstall();
+  const [isInstalling, setIsInstalling] = useState(false);
+  const featuredGames = getFeaturedLiveGames().slice(0, 4);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
+  const handleInstall = async () => {
+    if (isInstalled) {
+      router.push("/play");
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      resetIfNewDay();
-      ensureProgressDefaults();
-      startTrial();
-      metricsGetAll();
-      getUnlockedFeatures();
-      getLevelData();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const syncProgress = () => {
-      const totalStars = getStarsTotal();
-      setStars(totalStars);
-      setStreak(getStreak());
-      setShowChallengeBadge(getUnlockedFeatures().challengeBadgeUnlocked);
-      setTrialState(getTrialStatus().state);
-      setLevelData(getLevelData());
-
-      const notice = getPendingUnlockNotice(totalStars);
-      if (notice) {
-        setUnlockNotice(notice);
-        markUnlockNoticeSeen(notice.threshold);
+    if (canPromptInstall) {
+      setIsInstalling(true);
+      try {
+        await promptInstall();
+      } finally {
+        setIsInstalling(false);
       }
-
-      const pendingLevel = getPendingLevelUp();
-      if (pendingLevel !== null) {
-        setLevelUpNotice(pendingLevel);
-        markLevelUpNotified(pendingLevel);
-      }
-    };
-
-    syncProgress();
-    const onboarded = safeGet(ONBOARDED_KEY, "false") === "true";
-    setShowOnboardingPrompt(!onboarded);
-    window.addEventListener("storage", syncProgress);
-    return () => window.removeEventListener("storage", syncProgress);
-  }, []);
-
-  useEffect(() => {
-    if (!unlockNotice) {
       return;
     }
-    const timer = window.setTimeout(() => setUnlockNotice(null), 2300);
-    return () => window.clearTimeout(timer);
-  }, [unlockNotice]);
 
-  useEffect(() => {
-    if (!levelUpNotice) {
-      return;
-    }
-    const timer = window.setTimeout(() => setLevelUpNotice(null), 2300);
-    return () => window.clearTimeout(timer);
-  }, [levelUpNotice]);
-
-  const completeOnboardingPrompt = () => {
-    safeSet(ONBOARDED_KEY, "true");
-    setShowOnboardingPrompt(false);
+    router.push("/welcome");
   };
 
   return (
-    <section className="min-h-[calc(100vh-8rem)] py-8 sm:py-12">
-      {unlockNotice ? (
-        <div className="pointer-events-none fixed left-1/2 top-20 z-50 w-[min(92vw,420px)] -translate-x-1/2">
-          <div className="rounded-2xl border border-amber-200/50 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-200">{unlockNotice.title}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-100">{unlockNotice.description}</p>
-          </div>
+    <section className="space-y-6 py-5 sm:space-y-8 sm:py-8">
+      <section className={`${THEME.surfaces.card} ${THEME.gradients.hero} relative overflow-hidden p-5 sm:p-8`}>
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="absolute -left-10 top-0 h-28 w-28 rounded-full bg-cyan-300/14 blur-2xl" />
+          <div className="absolute right-0 top-6 h-32 w-32 rounded-full bg-rose-300/12 blur-2xl" />
+          <div className="absolute bottom-0 left-1/3 h-24 w-24 rounded-full bg-amber-300/10 blur-2xl" />
         </div>
-      ) : null}
-      {levelUpNotice ? (
-        <div className="pointer-events-none fixed left-1/2 top-36 z-50 w-[min(92vw,420px)] -translate-x-1/2">
-          <div className="rounded-2xl border border-violet-200/50 bg-slate-950/95 px-4 py-3 shadow-[0_18px_35px_rgba(2,6,23,0.55)]">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-100">Level Up!</p>
-            <p className="mt-1 text-sm font-semibold text-slate-100">You reached Level {levelUpNotice}</p>
-          </div>
-        </div>
-      ) : null}
 
-      {showOnboardingPrompt ? (
-        <div className={`${THEME.surfaces.card} mb-5 border-violet-200/20 bg-violet-500/10 p-4`}>
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-violet-100">New here? Set up PixelPress in 60 seconds.</p>
-              <p className="text-xs text-slate-300">Install tips, timer setup, and parent controls in one quick flow.</p>
-            </div>
-            <div className="flex w-full gap-2 sm:w-auto">
-              <Link
-                href="/welcome"
-                onClick={completeOnboardingPrompt}
-                className="inline-flex flex-1 items-center justify-center rounded-lg bg-violet-400 px-4 py-2.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-300 sm:flex-none"
-              >
-                Setup
-              </Link>
-              <button
-                type="button"
-                onClick={completeOnboardingPrompt}
-                className="inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200/25 bg-slate-900/70 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 sm:flex-none"
-              >
-                Skip
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <div className={`${THEME.surfaces.card} ${THEME.gradients.hero} p-6 sm:p-8`}>
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-100/20 bg-slate-900/80 px-3 py-1.5 text-sm font-semibold text-slate-100">
-            <span aria-hidden="true">🕹️</span>
-            <span>PixelPress</span>
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-100/18 bg-slate-900/80 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-slate-100">
+            <span aria-hidden="true">PixelPress</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            <span>Kid-safe arcade</span>
           </div>
 
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-200">
-            Kid-safe. Ad-free. Offline.
+          <h1 className="mt-4 max-w-2xl text-balance text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl">
+            Safe games for kids. No ads. No weird stuff.
+          </h1>
+
+          <p className={`mt-3 max-w-xl text-base leading-relaxed sm:text-lg ${THEME.brandColors.textMuted}`}>
+            A simple arcade parents can trust.
           </p>
-          <div className="mb-4">
-            <span
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.1em] ${
-                trialState === "expired"
-                  ? "border-rose-200/45 bg-rose-400/15 text-rose-100"
-                  : trialState === "limited"
-                    ? "border-amber-200/45 bg-amber-400/15 text-amber-100"
-                    : "border-emerald-200/45 bg-emerald-400/15 text-emerald-100"
-              }`}
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/play"
+              className={`inline-flex h-12 items-center justify-center rounded-xl px-6 text-base font-semibold transition ${THEME.brandColors.primaryButton}`}
             >
-              {trialState === "expired"
-                ? "Trial Expired"
-                : trialState === "limited"
-                  ? "Limited Trial"
-                  : "Full Trial"}
+              Start Playing
+            </Link>
+            <button
+              type="button"
+              onClick={handleInstall}
+              disabled={isInstalling}
+              className={`${arcade.secondaryButton} h-12 px-6 text-base disabled:cursor-not-allowed disabled:opacity-70`}
+            >
+              {isInstalling ? "Opening..." : "Install App"}
+            </button>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-100">
+            <span className={`${THEME.surfaces.pill} border-emerald-200/35 bg-emerald-300/10 text-emerald-100`}>
+              No ads
+            </span>
+            <span className={`${THEME.surfaces.pill} border-cyan-200/35 bg-cyan-300/10 text-cyan-100`}>
+              No tracking
+            </span>
+            <span className={`${THEME.surfaces.pill} border-violet-200/35 bg-violet-300/10 text-violet-100`}>
+              Offline ready
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {featuredGames.length > 0 ? (
+        <section className={`${THEME.surfaces.card} p-4`}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-black text-slate-100">Featured Games</h2>
+            <span className={`${THEME.surfaces.pill} border-violet-200/45 bg-violet-300/12 text-violet-100`}>
+              Start here
             </span>
           </div>
 
-          <h1 className="max-w-xl text-balance text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl">
-            A safe arcade for kids and the classics you grew up with.
-          </h1>
-
-          <p className={`mt-4 max-w-2xl text-lg leading-relaxed ${THEME.brandColors.textMuted}`}>
-            Ad-free. No tracking. No weird stuff. Installable and offline-friendly.
-          </p>
-
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/play"
-              className={`inline-flex items-center justify-center rounded-xl px-6 py-3.5 text-base font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 ${THEME.brandColors.primaryButton}`}
-            >
-              Browse Games
-            </Link>
-            <Link
-              href="/parent"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200/35 bg-slate-900/70 px-6 py-3.5 text-base font-semibold text-slate-100 transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-200"
-            >
-              Parent Mode
-            </Link>
-          </div>
-
-          <div className="mt-3">
-            <Link
-              href="/play"
-              className="inline-flex items-center gap-2 rounded-full border border-cyan-200/35 bg-cyan-300/12 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-300/20"
-            >
-              {nextUnlock ? `Next unlock in ${nextUnlock.remaining} ⭐` : "Unlocked all current rewards"}
-            </Link>
-          </div>
-
-          <div className="mt-7 grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
-            <div className="inline-flex items-center gap-2">
-              <span aria-hidden="true">🛡️</span>
-              <span>No ads ever</span>
-            </div>
-            <div className="inline-flex items-center gap-2">
-              <span aria-hidden="true">🕵️</span>
-              <span>No tracking</span>
-            </div>
-            <div className="inline-flex items-center gap-2">
-              <span aria-hidden="true">🔒</span>
-              <span>No external links</span>
-            </div>
-            <div className="inline-flex items-center gap-2">
-              <span aria-hidden="true">📶</span>
-              <span>Offline-friendly</span>
-            </div>
-          </div>
-
-          <div className="mt-7 rounded-2xl border border-slate-100/20 bg-slate-950/75 p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-amber-200/30 bg-amber-300/10 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-100/85">Stars</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <p className="text-3xl font-black text-amber-100">{stars}</p>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-violet-200/45 bg-violet-300/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-violet-100">
-                    Level {levelData.level}
-                  </span>
-                  {showChallengeBadge ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-300/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-amber-100">
-                      🏅 Arcade Challenger
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-              <div className="rounded-xl border border-cyan-200/30 bg-cyan-300/10 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/85">Streak</p>
-                <p className="mt-1 text-3xl font-black text-cyan-100">{streak}</p>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-slate-300">Play daily to build a streak.</p>
-          </div>
-        </div>
-
-        <aside className={`${THEME.surfaces.card} ${THEME.gradients.shelf} p-5 sm:p-6`}>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-100 sm:text-lg">Arcade Preview</h2>
-            <span className={`${THEME.surfaces.pill} text-slate-200`}>6 mini tiles</span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {previewGames.map((game) => {
+          <div className="flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+            {featuredGames.map((game) => {
               const accent = ACCENT_STYLES[game.accent];
               return (
-                <div
+                <Link
                   key={game.slug}
-                  className="rounded-xl border border-slate-100/12 bg-slate-900/90 p-3 shadow-[0_8px_18px_rgba(2,6,23,0.35)]"
+                  href={`/play/${game.slug}`}
+                  className={`group w-[240px] shrink-0 overflow-hidden rounded-2xl border border-slate-100/12 bg-slate-900/88 shadow-[0_10px_28px_rgba(2,6,23,0.38)] transition hover:-translate-y-0.5 lg:w-auto ${accent.tileGlow}`}
                 >
-                  <div className={`mb-2 h-1.5 rounded-full ${accent.ribbon}`} />
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-lg border text-lg ${accent.icon}`}
-                    >
-                      <span aria-hidden="true">{game.icon}</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-100">{game.title}</p>
-                      <p className="text-xs text-slate-300">
-                        {game.status === "live" ? "Live now" : "Coming soon"}
-                      </p>
+                  <div className={`h-1.5 ${accent.ribbon}`} />
+                  <div className="relative aspect-[16/10]">
+                    <GameCover
+                      title={game.title}
+                      icon={game.icon}
+                      accent={game.accent}
+                      cover={game.cover}
+                    />
+                  </div>
+
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-bold text-white">{game.title}</p>
+                        <p className="mt-1 text-sm text-slate-300">{game.description}</p>
+                      </div>
+                      <span className={`${THEME.surfaces.badge} ${accent.badge}`}>Play</span>
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
-        </aside>
-      </div>
+        </section>
+      ) : null}
+
+      <ParentTrustSection />
+
+      <section className={`${THEME.surfaces.card} p-4 sm:p-5`}>
+        <div className="mb-4">
+          <h2 className="text-xl font-black text-slate-100">How it works</h2>
+          <p className="mt-1 text-sm text-slate-300">Simple setup for families.</p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {HOW_IT_WORKS.map((item) => (
+            <article
+              key={item.step}
+              className="rounded-2xl border border-slate-200/18 bg-slate-900/86 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_20px_rgba(2,6,23,0.34)]"
+            >
+              <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-cyan-200/35 bg-cyan-300/10 px-2 text-xs font-black text-cyan-100">
+                {item.step}
+              </span>
+              <p className="mt-3 text-lg font-black text-slate-100">{item.title}</p>
+              <p className="mt-1 text-sm text-slate-300">{item.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={`${THEME.surfaces.card} ${THEME.gradients.shelf} p-6 text-center sm:p-8`}>
+        <p className="text-2xl font-black text-white sm:text-3xl">Start Playing</p>
+        <p className="mt-2 text-sm text-slate-300">Jump into the arcade and try the best games first.</p>
+        <div className="mt-5">
+          <Link
+            href="/play"
+            className={`inline-flex h-12 items-center justify-center rounded-xl px-6 text-base font-semibold transition ${THEME.brandColors.primaryButton}`}
+          >
+            Start Playing
+          </Link>
+        </div>
+      </section>
     </section>
   );
 }
