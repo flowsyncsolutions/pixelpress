@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import GameCover from "@/src/components/GameCover";
 import ParentTrustSection from "@/src/components/ParentTrustSection";
@@ -29,17 +28,11 @@ const HOW_IT_WORKS = [
 ];
 
 export default function Home() {
-  const router = useRouter();
   const { canPromptInstall, isInstalled, promptInstall } = usePwaInstall();
   const [isInstalling, setIsInstalling] = useState(false);
   const featuredGames = getFeaturedLiveGames().slice(0, 4);
 
   const handleInstall = async () => {
-    if (isInstalled) {
-      router.push("/play");
-      return;
-    }
-
     if (canPromptInstall) {
       setIsInstalling(true);
       try {
@@ -47,10 +40,7 @@ export default function Home() {
       } finally {
         setIsInstalling(false);
       }
-      return;
     }
-
-    router.push("/welcome");
   };
 
   return (
@@ -79,19 +69,42 @@ export default function Home() {
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/play"
+              href="/play/space-runner"
               className={`inline-flex h-12 items-center justify-center rounded-xl px-6 text-base font-semibold transition ${THEME.brandColors.primaryButton}`}
             >
-              Start Playing
+              Play Now
             </Link>
-            <button
-              type="button"
-              onClick={handleInstall}
-              disabled={isInstalling}
-              className={`${arcade.secondaryButton} h-12 px-6 text-base disabled:cursor-not-allowed disabled:opacity-70`}
+            {canPromptInstall && !isInstalled ? (
+              <button
+                type="button"
+                onClick={handleInstall}
+                disabled={isInstalling}
+                className={`${arcade.secondaryButton} h-12 px-6 text-base disabled:cursor-not-allowed disabled:opacity-70`}
+              >
+                {isInstalling ? "Opening..." : "Install PixelPress"}
+              </button>
+            ) : (
+              <Link
+                href="/welcome"
+                className={`${arcade.secondaryButton} inline-flex h-12 items-center justify-center px-6 text-base`}
+              >
+                Install PixelPress
+              </Link>
+            )}
+          </div>
+
+          <div className="mt-3">
+            <Link
+              href="/play"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200/20 bg-slate-950/75 px-5 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/95"
             >
-              {isInstalling ? "Opening..." : "Install App"}
-            </button>
+              Browse All Games
+            </Link>
+          </div>
+
+          <div className="mt-4 inline-flex items-center gap-3 rounded-full border border-amber-200/25 bg-amber-300/10 px-3 py-2 text-sm text-amber-50">
+            <span className="font-black tracking-[0.08em]">★★★★★</span>
+            <span className="text-sm font-medium">&ldquo;Finally games without ads.&rdquo;</span>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-100">
